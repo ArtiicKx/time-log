@@ -1,0 +1,382 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="TimeLog">
+  <div class="max-w-[680px] mx-auto px-4 pb-20">
+
+    <!-- ── Header ──────────────────────────────────────────────── -->
+    <header class="py-5 border-b border-line mb-8">
+      <div class="flex items-center justify-between gap-4">
+        <h1 class="text-xl font-bold tracking-tight">
+          Time<span class="text-accent">Log</span>
+        </h1>
+        <span id="current-date" class="text-xs text-dim capitalize"></span>
+      </div>
+    </header>
+
+    <main class="flex flex-col gap-4">
+
+      <!-- ── Timer card ───────────────────────────────────────── -->
+      <section class="bg-surface border border-line rounded-2xl px-6 pt-8 pb-6 flex flex-col items-center gap-5">
+        <div class="flex items-center gap-3">
+          <span
+            id="status-dot"
+            class="w-2.5 h-2.5 rounded-full bg-line shrink-0 transition-colors duration-300"
+          ></span>
+          <span
+            id="timer"
+            class="font-mono text-[clamp(2.6rem,9vw,3.75rem)] font-semibold tracking-[3px] leading-none tabular-nums"
+          >00:00:00</span>
+        </div>
+
+        <input
+          id="note-input"
+          type="text"
+          placeholder="¿En qué estás trabajando? (opcional)"
+          maxlength="200"
+          autocomplete="off"
+          class="w-full bg-hi border border-line rounded-xl text-txt px-4 py-2.5 text-sm transition-colors focus:border-accent focus:outline-none placeholder:text-dim disabled:opacity-35 disabled:cursor-not-allowed"
+        />
+
+        <button
+          id="toggle-btn"
+          class="w-full py-3 px-6 rounded-xl text-[0.95rem] font-semibold bg-accent text-black flex items-center justify-center gap-2 transition-all duration-150 hover:bg-accent-dark active:scale-[0.985]"
+        >
+          <span class="btn-icon">▶</span>
+          <span class="btn-label">Iniciar</span>
+        </button>
+
+        <p class="text-[0.7rem] text-dim/70">
+          Atajo: <kbd class="font-mono bg-hi border border-line rounded px-1.5 py-px text-[0.68rem] text-dim">Espacio</kbd>
+        </p>
+      </section>
+
+      <!-- ── Stats bar ────────────────────────────────────────── -->
+      <section class="grid grid-cols-3 gap-3">
+        <div class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5">
+          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Hoy</span>
+          <span id="stat-today" class="font-mono text-base font-semibold text-txt tabular-nums">0h 0m</span>
+        </div>
+        <div class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5">
+          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Esta semana</span>
+          <span id="stat-week" class="font-mono text-base font-semibold text-txt tabular-nums">0h 0m</span>
+        </div>
+        <div class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5">
+          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Sesiones</span>
+          <span id="stat-sessions" class="font-mono text-base font-semibold text-txt tabular-nums">0</span>
+        </div>
+      </section>
+
+      <!-- ── Records ──────────────────────────────────────────── -->
+      <section class="flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex gap-[3px] bg-surface border border-line rounded-lg p-[3px]">
+            <button class="filter-btn active px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt" data-filter="all">Todos</button>
+            <button class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt" data-filter="today">Hoy</button>
+            <button class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt" data-filter="week">Esta semana</button>
+          </div>
+          <button
+            id="export-btn"
+            class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
+          >↓ Exportar CSV</button>
+        </div>
+
+        <ul id="records-list" class="flex flex-col gap-1.5 list-none"></ul>
+      </section>
+
+    </main>
+  </div>
+</Layout>
+
+<script>
+  // ─── Types ─────────────────────────────────────────────────────────────────
+  interface Entry {
+    id: number;
+    start: number;
+    end: number;
+    duration: number;
+    notes: string;
+    date: string;
+  }
+
+  // ─── Storage ────────────────────────────────────────────────────────────────
+  const STORAGE_KEY = 'timelog_entries';
+
+  function loadEntries(): Entry[] {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  function saveEntries(data: Entry[]): void {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  // ─── State ──────────────────────────────────────────────────────────────────
+  let entries: Entry[] = loadEntries();
+  let timerInterval: ReturnType<typeof setInterval> | null = null;
+  let startTimestamp: number | null = null;
+  let activeFilter: 'all' | 'today' | 'week' = 'all';
+
+  // ─── DOM refs ───────────────────────────────────────────────────────────────
+  const timerEl       = document.getElementById('timer')!;
+  const statusDot     = document.getElementById('status-dot')!;
+  const noteInput     = document.getElementById('note-input') as HTMLInputElement;
+  const toggleBtn     = document.getElementById('toggle-btn')!;
+  const btnIcon       = toggleBtn.querySelector('.btn-icon')!;
+  const btnLabel      = toggleBtn.querySelector('.btn-label')!;
+  const recordsList   = document.getElementById('records-list')!;
+  const statToday     = document.getElementById('stat-today')!;
+  const statWeek      = document.getElementById('stat-week')!;
+  const statSessions  = document.getElementById('stat-sessions')!;
+  const exportBtn     = document.getElementById('export-btn')!;
+  const filterBtns    = document.querySelectorAll<HTMLButtonElement>('.filter-btn');
+  const currentDateEl = document.getElementById('current-date')!;
+
+  // ─── Init date label ────────────────────────────────────────────────────────
+  currentDateEl.textContent = new Date().toLocaleDateString('es-ES', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+
+  // ─── Helpers ────────────────────────────────────────────────────────────────
+  function getToday(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function formatClock(secs: number): string {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+  }
+
+  function formatDuration(secs: number): string {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m ${s}s`;
+  }
+
+  function formatTotalTime(secs: number): string {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    return `${h}h ${m}m`;
+  }
+
+  function formatLocalTime(ts: number): string {
+    return new Date(ts).toLocaleTimeString('es-ES', {
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  function formatLocalTimeSec(ts: number): string {
+    return new Date(ts).toLocaleTimeString('es-ES', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+  }
+
+  // ─── Timer ──────────────────────────────────────────────────────────────────
+  function startTimer(): void {
+    startTimestamp = Date.now();
+    noteInput.disabled = true;
+    btnIcon.textContent = '■';
+    btnLabel.textContent = 'Detener';
+    toggleBtn.classList.add('active');
+    statusDot.classList.add('running');
+
+    timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimestamp!) / 1000);
+      timerEl.textContent = formatClock(elapsed);
+    }, 1000);
+  }
+
+  function stopTimer(): void {
+    if (!timerInterval || startTimestamp === null) return;
+
+    clearInterval(timerInterval);
+    timerInterval = null;
+
+    const endTs = Date.now();
+    const duration = Math.floor((endTs - startTimestamp) / 1000);
+
+    if (duration >= 1) {
+      const entry: Entry = {
+        id: startTimestamp,
+        start: startTimestamp,
+        end: endTs,
+        duration,
+        notes: noteInput.value.trim(),
+        date: getToday(),
+      };
+      entries.unshift(entry);
+      saveEntries(entries);
+    }
+
+    startTimestamp = null;
+    timerEl.textContent = '00:00:00';
+    noteInput.disabled = false;
+    noteInput.value = '';
+    btnIcon.textContent = '▶';
+    btnLabel.textContent = 'Iniciar';
+    toggleBtn.classList.remove('active');
+    statusDot.classList.remove('running');
+
+    updateStats();
+    renderList();
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    timerInterval ? stopTimer() : startTimer();
+  });
+
+  // ─── Stats ──────────────────────────────────────────────────────────────────
+  function updateStats(): void {
+    const today = getToday();
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+    let todayTotal = 0;
+    let weekTotal  = 0;
+
+    for (const e of entries) {
+      if (e.date === today)    todayTotal += e.duration;
+      if (e.start >= weekAgo)  weekTotal  += e.duration;
+    }
+
+    statToday.textContent    = formatTotalTime(todayTotal);
+    statWeek.textContent     = formatTotalTime(weekTotal);
+    statSessions.textContent = String(entries.length);
+  }
+
+  // ─── Render list ────────────────────────────────────────────────────────────
+  function getFilteredEntries(): Entry[] {
+    const today   = getToday();
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    if (activeFilter === 'today') return entries.filter(e => e.date === today);
+    if (activeFilter === 'week')  return entries.filter(e => e.start >= weekAgo);
+    return entries;
+  }
+
+  function renderList(): void {
+    const filtered = getFilteredEntries();
+
+    if (filtered.length === 0) {
+      recordsList.innerHTML = `
+        <li class="flex flex-col items-center justify-center py-14 text-dim text-sm border border-dashed border-line rounded-2xl gap-2">
+          <span class="text-3xl opacity-20">⏱</span>
+          <span>Sin registros${activeFilter !== 'all' ? ' en este período' : ''}</span>
+        </li>`;
+      return;
+    }
+
+    recordsList.innerHTML = filtered.map(entry => {
+      const hasNote   = entry.notes.length > 0;
+      const noteClass = hasNote
+        ? 'text-[0.88rem] font-medium text-txt leading-snug truncate'
+        : 'text-[0.88rem] italic text-dim/60 leading-snug truncate';
+
+      return `
+        <li
+          class="group relative flex items-stretch rounded-xl bg-surface border border-line overflow-hidden transition-colors duration-150 hover:border-line-hi"
+          data-id="${entry.id}"
+        >
+          <!-- Left accent strip -->
+          <div class="w-[3px] shrink-0 bg-line group-hover:bg-accent/50 transition-colors duration-200"></div>
+
+          <!-- Content -->
+          <div class="flex flex-1 items-center gap-3 pl-4 pr-3 py-3.5 min-w-0">
+
+            <!-- Left: note + time -->
+            <div class="flex-1 min-w-0">
+              <p class="${noteClass}">${hasNote ? entry.notes : '— sin nota —'}</p>
+              <div class="flex items-center gap-1 mt-1 font-mono text-[0.7rem] text-dim/70">
+                <span>${formatLocalTime(entry.start)}</span>
+                <span class="opacity-40 mx-0.5">→</span>
+                <span>${formatLocalTime(entry.end)}</span>
+                <span class="opacity-25 mx-1.5">·</span>
+                <span>${entry.date}</span>
+              </div>
+            </div>
+
+            <!-- Right: duration badge + delete -->
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="font-mono text-[0.78rem] font-bold text-accent bg-accent/[0.07] border border-accent/20 px-2.5 py-1 rounded-lg tabular-nums">
+                ${formatDuration(entry.duration)}
+              </span>
+              <button
+                class="delete-btn opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-danger hover:bg-danger/[0.08] border border-transparent hover:border-danger/25 transition-all duration-150 text-[0.65rem]"
+                data-id="${entry.id}"
+                title="Eliminar sesión"
+              >✕</button>
+            </div>
+
+          </div>
+        </li>`;
+    }).join('');
+  }
+
+  // ─── Delete ─────────────────────────────────────────────────────────────────
+  recordsList.addEventListener('click', (e) => {
+    const btn = (e.target as Element).closest<HTMLButtonElement>('.delete-btn');
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    entries = entries.filter(e => e.id !== id);
+    saveEntries(entries);
+    updateStats();
+    renderList();
+  });
+
+  // ─── Filters ────────────────────────────────────────────────────────────────
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.dataset.filter as typeof activeFilter;
+      renderList();
+    });
+  });
+
+  // ─── Export CSV ─────────────────────────────────────────────────────────────
+  exportBtn.addEventListener('click', () => {
+    if (entries.length === 0) return;
+
+    const BOM     = '\uFEFF';
+    const headers = ['ID', 'Fecha', 'Hora inicio', 'Hora fin', 'Duración (seg)', 'Duración', 'Nota'];
+
+    const rows = entries.map(e => [
+      e.id,
+      e.date,
+      formatLocalTimeSec(e.start),
+      formatLocalTimeSec(e.end),
+      e.duration,
+      formatDuration(e.duration),
+      `"${(e.notes ?? '').replace(/"/g, '""')}"`,
+    ].join(','));
+
+    const csv  = BOM + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `timelog_${getToday()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  // ─── Keyboard shortcut ──────────────────────────────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && document.activeElement !== noteInput) {
+      e.preventDefault();
+      timerInterval ? stopTimer() : startTimer();
+    }
+  });
+
+  // ─── Boot ───────────────────────────────────────────────────────────────────
+  updateStats();
+  renderList();
+</script>
