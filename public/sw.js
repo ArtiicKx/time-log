@@ -1,4 +1,4 @@
-const CACHE = 'timelog-v1';
+const CACHE = 'timelog-v2';
 
 const PRECACHE = [
   '/',
@@ -24,16 +24,31 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Solo cachear GET de same-origin
+  // Solo interceptar GET same-origin
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
 
+  // Navegaciones (HTML): priorizar red para evitar contenido viejo tras deploy
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then((res) => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const clone = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Assets: cache-first con fallback a red
   e.respondWith(
-    caches.match(e.request).then(cached => {
+    caches.match(e.request).then((cached) => {
       if (cached) return cached;
-      return fetch(e.request).then(res => {
+      return fetch(e.request).then((res) => {
         if (!res || res.status !== 200 || res.type !== 'basic') return res;
         const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
+        caches.open(CACHE).then((c) => c.put(e.request, clone));
         return res;
       });
     })
