@@ -8,14 +8,20 @@ const { title = "TimeLog" } = Astro.props;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Registra tus horas de trabajo en tiempo real. Sin cuenta, sin internet." />
+    <meta
+      name="description"
+      content="Registra tus horas de trabajo en tiempo real. Sin cuenta, sin internet."
+    />
     <meta name="generator" content={Astro.generator} />
 
     <!-- PWA / theme -->
     <meta name="theme-color" content="#22c55e" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="apple-mobile-web-app-title" content="TimeLog" />
     <meta name="application-name" content="TimeLog" />
     <meta name="msapplication-TileColor" content="#0d0d0d" />
@@ -25,7 +31,7 @@ const { title = "TimeLog" } = Astro.props;
     <link rel="manifest" href="/manifest.webmanifest" />
 
     <!-- Favicons -->
-    <link rel="icon" type="image/png" sizes="96x96"   href="/icon-96.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/icon-96.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
 
     <!-- Apple touch icons -->
@@ -39,12 +45,12 @@ const { title = "TimeLog" } = Astro.props;
     <slot />
 
     <!-- Service Worker registration -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+    <!-- <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
         });
       }
-    </script>
+    </script> -->
   </body>
 </html>

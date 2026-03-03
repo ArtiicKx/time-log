@@ -1,10 +1,9 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="TimeLog">
   <div class="max-w-[680px] mx-auto px-4 pb-20">
-
     <!-- ── Header ──────────────────────────────────────────────── -->
     <header class="py-5 border-b border-line mb-8">
       <div class="flex items-center justify-between gap-4">
@@ -16,9 +15,10 @@ import Layout from '../layouts/Layout.astro';
     </header>
 
     <main class="flex flex-col gap-4">
-
       <!-- ── Timer card ───────────────────────────────────────── -->
-      <section class="bg-surface border border-line rounded-2xl px-6 pt-8 pb-6 flex flex-col items-center gap-5">
+      <section
+        class="bg-surface border border-line rounded-2xl px-6 pt-8 pb-6 flex flex-col items-center gap-5"
+      >
         <div class="flex items-center gap-3">
           <span
             id="status-dot"
@@ -27,7 +27,8 @@ import Layout from '../layouts/Layout.astro';
           <span
             id="timer"
             class="font-mono text-[clamp(2.6rem,9vw,3.75rem)] font-semibold tracking-[3px] leading-none tabular-nums"
-          >00:00:00</span>
+            >00:00:00</span
+          >
         </div>
 
         <input
@@ -48,44 +49,130 @@ import Layout from '../layouts/Layout.astro';
         </button>
 
         <p class="text-[0.7rem] text-dim/70">
-          Atajo: <kbd class="font-mono bg-hi border border-line rounded px-1.5 py-px text-[0.68rem] text-dim">Espacio</kbd>
+          Atajo: <kbd
+            class="font-mono bg-hi border border-line rounded px-1.5 py-px text-[0.68rem] text-dim"
+            >Espacio</kbd
+          >
         </p>
       </section>
 
       <!-- ── Stats bar ────────────────────────────────────────── -->
       <section class="grid grid-cols-3 gap-3">
-        <div class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5">
-          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Hoy</span>
-          <span id="stat-today" class="font-mono text-base font-semibold text-txt tabular-nums">0h 0m</span>
+        <div
+          class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5"
+        >
+          <span class="text-[0.65rem] text-dim uppercase tracking-widest"
+            >Hoy</span
+          >
+          <span
+            id="stat-today"
+            class="font-mono text-base font-semibold text-txt tabular-nums"
+            >0h 0m</span
+          >
         </div>
-        <div class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5">
-          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Esta semana</span>
-          <span id="stat-week" class="font-mono text-base font-semibold text-txt tabular-nums">0h 0m</span>
+        <div
+          class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5"
+        >
+          <span class="text-[0.65rem] text-dim uppercase tracking-widest"
+            >Esta semana</span
+          >
+          <span
+            id="stat-week"
+            class="font-mono text-base font-semibold text-txt tabular-nums"
+            >0h 0m</span
+          >
         </div>
-        <div class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5">
-          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Sesiones</span>
-          <span id="stat-sessions" class="font-mono text-base font-semibold text-txt tabular-nums">0</span>
+        <div
+          class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5"
+        >
+          <span class="text-[0.65rem] text-dim uppercase tracking-widest"
+            >Sesiones</span
+          >
+          <span
+            id="stat-sessions"
+            class="font-mono text-base font-semibold text-txt tabular-nums"
+            >0</span
+          >
         </div>
       </section>
 
       <!-- ── Records ──────────────────────────────────────────── -->
       <section class="flex flex-col gap-3">
         <div class="flex items-center justify-between gap-3 flex-wrap">
-          <div class="flex gap-[3px] bg-surface border border-line rounded-lg p-[3px]">
-            <button class="filter-btn active px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt" data-filter="all">Todos</button>
-            <button class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt" data-filter="today">Hoy</button>
-            <button class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt" data-filter="week">Esta semana</button>
+          <div
+            class="flex gap-[3px] bg-surface border border-line rounded-lg p-[3px]"
+          >
+            <button
+              class="filter-btn active px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt"
+              data-filter="all">Todos</button
+            >
+            <button
+              class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt"
+              data-filter="today">Hoy</button
+            >
+            <button
+              class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt"
+              data-filter="week">Esta semana</button
+            >
           </div>
-          <button
-            id="export-btn"
-            class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
-          >↓ Exportar CSV</button>
+          <div class="flex gap-2">
+            <button
+              id="preview-btn"
+              class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
+              >⊞ Vista previa</button
+            >
+            <button
+              id="export-btn"
+              class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
+              >↓ Exportar CSV</button
+            >
+          </div>
         </div>
 
         <ul id="records-list" class="flex flex-col gap-1.5 list-none"></ul>
       </section>
-
     </main>
+  </div>
+
+  <!-- ── CSV Preview Modal ────────────────────────────────────────────── -->
+  <div
+    id="csv-modal"
+    class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Vista previa CSV"
+  >
+    <!-- backdrop -->
+    <div id="csv-backdrop" class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+
+    <!-- panel -->
+    <div class="relative z-10 w-full sm:max-w-[720px] bg-surface border border-line sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[90dvh] sm:max-h-[80dvh]">
+
+      <!-- header -->
+      <div class="flex items-center justify-between px-5 py-4 border-b border-line shrink-0">
+        <span class="text-sm font-semibold">Vista previa CSV</span>
+        <button
+          id="csv-close"
+          class="w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-txt hover:bg-hi border border-transparent hover:border-line transition-all duration-150 text-xs"
+          title="Cerrar"
+        >✕</button>
+      </div>
+
+      <!-- table -->
+      <div class="overflow-auto flex-1 px-5 py-4">
+        <table id="csv-table" class="w-full text-[0.72rem] font-mono border-collapse min-w-[540px]"></table>
+      </div>
+
+      <!-- footer -->
+      <div class="px-5 py-3.5 border-t border-line shrink-0 flex items-center justify-between gap-3">
+        <span id="csv-count" class="text-xs text-dim tabular-nums"></span>
+        <button
+          id="csv-download-modal"
+          class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
+        >↓ Descargar CSV</button>
+      </div>
+
+    </div>
   </div>
 </Layout>
 
@@ -101,11 +188,11 @@ import Layout from '../layouts/Layout.astro';
   }
 
   // ─── Storage ────────────────────────────────────────────────────────────────
-  const STORAGE_KEY = 'timelog_entries';
+  const STORAGE_KEY = "timelog_entries";
 
   function loadEntries(): Entry[] {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
     } catch {
       return [];
     }
@@ -119,26 +206,37 @@ import Layout from '../layouts/Layout.astro';
   let entries: Entry[] = loadEntries();
   let timerInterval: ReturnType<typeof setInterval> | null = null;
   let startTimestamp: number | null = null;
-  let activeFilter: 'all' | 'today' | 'week' = 'all';
+  let activeFilter: "all" | "today" | "week" = "all";
 
   // ─── DOM refs ───────────────────────────────────────────────────────────────
-  const timerEl       = document.getElementById('timer')!;
-  const statusDot     = document.getElementById('status-dot')!;
-  const noteInput     = document.getElementById('note-input') as HTMLInputElement;
-  const toggleBtn     = document.getElementById('toggle-btn')!;
-  const btnIcon       = toggleBtn.querySelector('.btn-icon')!;
-  const btnLabel      = toggleBtn.querySelector('.btn-label')!;
-  const recordsList   = document.getElementById('records-list')!;
-  const statToday     = document.getElementById('stat-today')!;
-  const statWeek      = document.getElementById('stat-week')!;
-  const statSessions  = document.getElementById('stat-sessions')!;
-  const exportBtn     = document.getElementById('export-btn')!;
-  const filterBtns    = document.querySelectorAll<HTMLButtonElement>('.filter-btn');
-  const currentDateEl = document.getElementById('current-date')!;
+  const timerEl = document.getElementById("timer")!;
+  const statusDot = document.getElementById("status-dot")!;
+  const noteInput = document.getElementById("note-input") as HTMLInputElement;
+  const toggleBtn = document.getElementById("toggle-btn")!;
+  const btnIcon = toggleBtn.querySelector(".btn-icon")!;
+  const btnLabel = toggleBtn.querySelector(".btn-label")!;
+  const recordsList = document.getElementById("records-list")!;
+  const statToday = document.getElementById("stat-today")!;
+  const statWeek = document.getElementById("stat-week")!;
+  const statSessions = document.getElementById("stat-sessions")!;
+  const exportBtn = document.getElementById("export-btn")!;
+  const previewBtn = document.getElementById("preview-btn")!;
+  const csvModal = document.getElementById("csv-modal")!;
+  const csvBackdrop = document.getElementById("csv-backdrop")!;
+  const csvClose = document.getElementById("csv-close")!;
+  const csvTable = document.getElementById("csv-table")!;
+  const csvCount = document.getElementById("csv-count")!;
+  const csvDownloadModal = document.getElementById("csv-download-modal")!;
+  const filterBtns =
+    document.querySelectorAll<HTMLButtonElement>(".filter-btn");
+  const currentDateEl = document.getElementById("current-date")!;
 
   // ─── Init date label ────────────────────────────────────────────────────────
-  currentDateEl.textContent = new Date().toLocaleDateString('es-ES', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  currentDateEl.textContent = new Date().toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -150,7 +248,7 @@ import Layout from '../layouts/Layout.astro';
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
-    return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+    return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
   }
 
   function formatDuration(secs: number): string {
@@ -168,14 +266,17 @@ import Layout from '../layouts/Layout.astro';
   }
 
   function formatLocalTime(ts: number): string {
-    return new Date(ts).toLocaleTimeString('es-ES', {
-      hour: '2-digit', minute: '2-digit',
+    return new Date(ts).toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   }
 
   function formatLocalTimeSec(ts: number): string {
-    return new Date(ts).toLocaleTimeString('es-ES', {
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    return new Date(ts).toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
   }
 
@@ -183,10 +284,10 @@ import Layout from '../layouts/Layout.astro';
   function startTimer(): void {
     startTimestamp = Date.now();
     noteInput.disabled = true;
-    btnIcon.textContent = '■';
-    btnLabel.textContent = 'Detener';
-    toggleBtn.classList.add('active');
-    statusDot.classList.add('running');
+    btnIcon.textContent = "■";
+    btnLabel.textContent = "Detener";
+    toggleBtn.classList.add("active");
+    statusDot.classList.add("running");
 
     timerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTimestamp!) / 1000);
@@ -217,19 +318,19 @@ import Layout from '../layouts/Layout.astro';
     }
 
     startTimestamp = null;
-    timerEl.textContent = '00:00:00';
+    timerEl.textContent = "00:00:00";
     noteInput.disabled = false;
-    noteInput.value = '';
-    btnIcon.textContent = '▶';
-    btnLabel.textContent = 'Iniciar';
-    toggleBtn.classList.remove('active');
-    statusDot.classList.remove('running');
+    noteInput.value = "";
+    btnIcon.textContent = "▶";
+    btnLabel.textContent = "Iniciar";
+    toggleBtn.classList.remove("active");
+    statusDot.classList.remove("running");
 
     updateStats();
     renderList();
   }
 
-  toggleBtn.addEventListener('click', () => {
+  toggleBtn.addEventListener("click", () => {
     timerInterval ? stopTimer() : startTimer();
   });
 
@@ -239,24 +340,26 @@ import Layout from '../layouts/Layout.astro';
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
     let todayTotal = 0;
-    let weekTotal  = 0;
+    let weekTotal = 0;
 
     for (const e of entries) {
-      if (e.date === today)    todayTotal += e.duration;
-      if (e.start >= weekAgo)  weekTotal  += e.duration;
+      if (e.date === today) todayTotal += e.duration;
+      if (e.start >= weekAgo) weekTotal += e.duration;
     }
 
-    statToday.textContent    = formatTotalTime(todayTotal);
-    statWeek.textContent     = formatTotalTime(weekTotal);
+    statToday.textContent = formatTotalTime(todayTotal);
+    statWeek.textContent = formatTotalTime(weekTotal);
     statSessions.textContent = String(entries.length);
   }
 
   // ─── Render list ────────────────────────────────────────────────────────────
   function getFilteredEntries(): Entry[] {
-    const today   = getToday();
+    const today = getToday();
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    if (activeFilter === 'today') return entries.filter(e => e.date === today);
-    if (activeFilter === 'week')  return entries.filter(e => e.start >= weekAgo);
+    if (activeFilter === "today")
+      return entries.filter((e) => e.date === today);
+    if (activeFilter === "week")
+      return entries.filter((e) => e.start >= weekAgo);
     return entries;
   }
 
@@ -267,18 +370,19 @@ import Layout from '../layouts/Layout.astro';
       recordsList.innerHTML = `
         <li class="flex flex-col items-center justify-center py-14 text-dim text-sm border border-dashed border-line rounded-2xl gap-2">
           <span class="text-3xl opacity-20">⏱</span>
-          <span>Sin registros${activeFilter !== 'all' ? ' en este período' : ''}</span>
+          <span>Sin registros${activeFilter !== "all" ? " en este período" : ""}</span>
         </li>`;
       return;
     }
 
-    recordsList.innerHTML = filtered.map(entry => {
-      const hasNote   = entry.notes.length > 0;
-      const noteClass = hasNote
-        ? 'text-[0.88rem] font-medium text-txt leading-snug truncate'
-        : 'text-[0.88rem] italic text-dim/60 leading-snug truncate';
+    recordsList.innerHTML = filtered
+      .map((entry) => {
+        const hasNote = entry.notes.length > 0;
+        const noteClass = hasNote
+          ? "text-[0.88rem] font-medium text-txt leading-snug truncate"
+          : "text-[0.88rem] italic text-dim/60 leading-snug truncate";
 
-      return `
+        return `
         <li
           class="group relative flex items-stretch rounded-xl bg-surface border border-line overflow-hidden transition-colors duration-150 hover:border-line-hi"
           data-id="${entry.id}"
@@ -291,7 +395,7 @@ import Layout from '../layouts/Layout.astro';
 
             <!-- Left: note + time -->
             <div class="flex-1 min-w-0">
-              <p class="${noteClass}">${hasNote ? entry.notes : '— sin nota —'}</p>
+              <p class="${noteClass}">${hasNote ? entry.notes : "— sin nota —"}</p>
               <div class="flex items-center gap-1 mt-1 font-mono text-[0.7rem] text-dim/70">
                 <span>${formatLocalTime(entry.start)}</span>
                 <span class="opacity-40 mx-0.5">→</span>
@@ -315,52 +419,63 @@ import Layout from '../layouts/Layout.astro';
 
           </div>
         </li>`;
-    }).join('');
+      })
+      .join("");
   }
 
   // ─── Delete ─────────────────────────────────────────────────────────────────
-  recordsList.addEventListener('click', (e) => {
-    const btn = (e.target as Element).closest<HTMLButtonElement>('.delete-btn');
+  recordsList.addEventListener("click", (e) => {
+    const btn = (e.target as Element).closest<HTMLButtonElement>(".delete-btn");
     if (!btn) return;
     const id = Number(btn.dataset.id);
-    entries = entries.filter(e => e.id !== id);
+    entries = entries.filter((e) => e.id !== id);
     saveEntries(entries);
     updateStats();
     renderList();
   });
 
   // ─── Filters ────────────────────────────────────────────────────────────────
-  filterBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      filterBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+  filterBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      filterBtns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
       activeFilter = btn.dataset.filter as typeof activeFilter;
       renderList();
     });
   });
 
   // ─── Export CSV ─────────────────────────────────────────────────────────────
-  exportBtn.addEventListener('click', () => {
+  exportBtn.addEventListener("click", () => {
     if (entries.length === 0) return;
 
-    const BOM     = '\uFEFF';
-    const headers = ['ID', 'Fecha', 'Hora inicio', 'Hora fin', 'Duración (seg)', 'Duración', 'Nota'];
+    const BOM = "\uFEFF";
+    const headers = [
+      "ID",
+      "Fecha",
+      "Hora inicio",
+      "Hora fin",
+      "Duración (seg)",
+      "Duración",
+      "Nota",
+    ];
 
-    const rows = entries.map(e => [
-      e.id,
-      e.date,
-      formatLocalTimeSec(e.start),
-      formatLocalTimeSec(e.end),
-      e.duration,
-      formatDuration(e.duration),
-      `"${(e.notes ?? '').replace(/"/g, '""')}"`,
-    ].join(','));
+    const rows = entries.map((e) =>
+      [
+        e.id,
+        e.date,
+        formatLocalTimeSec(e.start),
+        formatLocalTimeSec(e.end),
+        e.duration,
+        formatDuration(e.duration),
+        `"${(e.notes ?? "").replace(/"/g, '""')}"`,
+      ].join(","),
+    );
 
-    const csv  = BOM + [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
+    const csv = BOM + [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
     a.download = `timelog_${getToday()}.csv`;
     document.body.appendChild(a);
     a.click();
@@ -368,9 +483,64 @@ import Layout from '../layouts/Layout.astro';
     URL.revokeObjectURL(url);
   });
 
+  // ─── CSV Preview ────────────────────────────────────────────────────────────
+  function esc(str: string): string {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function openCsvPreview(): void {
+    if (entries.length === 0) return;
+
+    const cols = ["Fecha", "Inicio", "Fin", "Duración", "Nota"];
+    const thCls =
+      "px-3 py-2 text-left text-dim font-medium border-b border-line bg-hi sticky top-0";
+    const tdCls = "px-3 py-2 border-b border-line/60 text-txt/90 max-w-[160px] truncate";
+    const tdAccent =
+      "px-3 py-2 border-b border-line/60 text-accent font-bold tabular-nums";
+
+    const thead = `<thead><tr>${cols.map((c) => `<th class="${thCls}">${c}</th>`).join("")}</tr></thead>`;
+
+    const tbody =
+      "<tbody>" +
+      entries
+        .map(
+          (e) =>
+            `<tr class="hover:bg-hi/40 transition-colors duration-100">
+              <td class="${tdCls}">${esc(e.date)}</td>
+              <td class="${tdCls} tabular-nums">${esc(formatLocalTimeSec(e.start))}</td>
+              <td class="${tdCls} tabular-nums">${esc(formatLocalTimeSec(e.end))}</td>
+              <td class="${tdAccent}">${esc(formatDuration(e.duration))}</td>
+              <td class="${tdCls} ${e.notes ? "" : "italic text-dim/50"}">${e.notes ? esc(e.notes) : "—"}</td>
+            </tr>`,
+        )
+        .join("") +
+      "</tbody>";
+
+    csvTable.innerHTML = thead + tbody;
+    csvCount.textContent = `${entries.length} ${entries.length === 1 ? "registro" : "registros"}`;
+    csvModal.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeCsvPreview(): void {
+    csvModal.classList.add("hidden");
+    document.body.style.overflow = "";
+  }
+
+  previewBtn.addEventListener("click", openCsvPreview);
+  csvClose.addEventListener("click", closeCsvPreview);
+  csvBackdrop.addEventListener("click", closeCsvPreview);
+  csvDownloadModal.addEventListener("click", () => exportBtn.click());
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !csvModal.classList.contains("hidden")) {
+      closeCsvPreview();
+    }
+  });
+
   // ─── Keyboard shortcut ──────────────────────────────────────────────────────
-  document.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && document.activeElement !== noteInput) {
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space" && document.activeElement !== noteInput) {
       e.preventDefault();
       timerInterval ? stopTimer() : startTimer();
     }
