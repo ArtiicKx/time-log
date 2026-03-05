@@ -189,6 +189,7 @@ import Layout from "../layouts/Layout.astro";
 
   // ─── Storage ────────────────────────────────────────────────────────────────
   const STORAGE_KEY = "timelog_entries";
+  const RUNNING_KEY = "timelog_running";
 
   function loadEntries(): Entry[] {
     try {
@@ -200,6 +201,26 @@ import Layout from "../layouts/Layout.astro";
 
   function saveEntries(data: Entry[]): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function saveRunningState(): void {
+    localStorage.setItem(
+      RUNNING_KEY,
+      JSON.stringify({ start: startTimestamp, note: noteInput.value.trim() })
+    );
+  }
+
+  function clearRunningState(): void {
+    localStorage.removeItem(RUNNING_KEY);
+  }
+
+  function loadRunningState(): { start: number; note: string } | null {
+    try {
+      const raw = localStorage.getItem(RUNNING_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   }
 
   // ─── State ──────────────────────────────────────────────────────────────────
@@ -288,6 +309,25 @@ import Layout from "../layouts/Layout.astro";
     btnLabel.textContent = "Detener";
     toggleBtn.classList.add("active");
     statusDot.classList.add("running");
+    saveRunningState();
+
+    timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimestamp!) / 1000);
+      timerEl.textContent = formatClock(elapsed);
+    }, 1000);
+  }
+
+  function resumeTimer(savedStart: number, savedNote: string): void {
+    startTimestamp = savedStart;
+    noteInput.value = savedNote;
+    noteInput.disabled = true;
+    btnIcon.textContent = "■";
+    btnLabel.textContent = "Detener";
+    toggleBtn.classList.add("active");
+    statusDot.classList.add("running");
+
+    const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+    timerEl.textContent = formatClock(elapsed);
 
     timerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTimestamp!) / 1000);
@@ -300,6 +340,7 @@ import Layout from "../layouts/Layout.astro";
 
     clearInterval(timerInterval);
     timerInterval = null;
+    clearRunningState();
 
     const endTs = Date.now();
     const duration = Math.floor((endTs - startTimestamp) / 1000);
@@ -549,4 +590,18 @@ import Layout from "../layouts/Layout.astro";
   // ─── Boot ───────────────────────────────────────────────────────────────────
   updateStats();
   renderList();
+
+  // Restore timer if the page was reloaded while running (e.g. iOS killed the tab)
+  const savedRunning = loadRunningState();
+  if (savedRunning) {
+    resumeTimer(savedRunning.start, savedRunning.note);
+  }
+
+  // When the page becomes visible again after being backgrounded, sync display immediately
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && startTimestamp !== null) {
+      const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+      timerEl.textContent = formatClock(elapsed);
+    }
+  });
 </script>
