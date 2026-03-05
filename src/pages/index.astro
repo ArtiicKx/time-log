@@ -4,20 +4,45 @@ import Layout from "../layouts/Layout.astro";
 
 <Layout title="TimeLog">
   <div class="max-w-[680px] mx-auto px-4 pb-20">
+
     <!-- ── Header ──────────────────────────────────────────────── -->
     <header class="py-5 border-b border-line mb-8">
       <div class="flex items-center justify-between gap-4">
         <h1 class="text-xl font-bold tracking-tight">
           Time<span class="text-accent">Log</span>
         </h1>
-        <span id="current-date" class="text-xs text-dim capitalize"></span>
+        <div class="flex items-center gap-2">
+          <span id="current-date" class="text-xs text-dim capitalize"></span>
+          <button
+            id="notif-btn"
+            class="w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-txt hover:bg-hi border border-transparent hover:border-line transition-all duration-150 text-sm"
+            title="Configurar notificaciones"
+          >🔔</button>
+        </div>
+      </div>
+
+      <!-- Notification panel -->
+      <div
+        id="notif-panel"
+        class="hidden mt-3 p-3 bg-hi border border-line rounded-xl flex flex-col gap-2.5"
+      >
+        <span class="text-[0.65rem] text-dim uppercase tracking-widest">Notificación al acumular hoy</span>
+        <div class="flex gap-1.5 flex-wrap">
+          <button class="notif-opt px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" data-hours="">Off</button>
+          <button class="notif-opt px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" data-hours="2">2h</button>
+          <button class="notif-opt px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" data-hours="4">4h</button>
+          <button class="notif-opt px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" data-hours="6">6h</button>
+          <button class="notif-opt px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" data-hours="8">8h</button>
+        </div>
+        <span id="notif-status" class="text-[0.68rem] text-dim/70"></span>
       </div>
     </header>
 
     <main class="flex flex-col gap-4">
+
       <!-- ── Timer card ───────────────────────────────────────── -->
       <section
-        class="bg-surface border border-line rounded-2xl px-6 pt-8 pb-6 flex flex-col items-center gap-5"
+        class="bg-surface border border-line rounded-2xl px-6 pt-8 pb-6 flex flex-col items-center gap-4"
       >
         <div class="flex items-center gap-3">
           <span
@@ -32,6 +57,17 @@ import Layout from "../layouts/Layout.astro";
         </div>
 
         <input
+          id="project-input"
+          type="text"
+          list="projects-datalist"
+          placeholder="Proyecto (opcional)"
+          maxlength="50"
+          autocomplete="off"
+          class="w-full bg-hi border border-line rounded-xl text-txt px-4 py-2.5 text-sm transition-colors focus:border-accent focus:outline-none placeholder:text-dim disabled:opacity-35 disabled:cursor-not-allowed"
+        />
+        <datalist id="projects-datalist"></datalist>
+
+        <input
           id="note-input"
           type="text"
           placeholder="¿En qué estás trabajando? (opcional)"
@@ -40,19 +76,39 @@ import Layout from "../layouts/Layout.astro";
           class="w-full bg-hi border border-line rounded-xl text-txt px-4 py-2.5 text-sm transition-colors focus:border-accent focus:outline-none placeholder:text-dim disabled:opacity-35 disabled:cursor-not-allowed"
         />
 
-        <button
-          id="toggle-btn"
-          class="w-full py-3 px-6 rounded-xl text-[0.95rem] font-semibold bg-accent text-black flex items-center justify-center gap-2 transition-all duration-150 hover:bg-accent-dark active:scale-[0.985]"
-        >
-          <span class="btn-icon">▶</span>
-          <span class="btn-label">Iniciar</span>
-        </button>
+        <!-- Button area — contents managed by JS -->
+        <div id="btn-area" class="w-full flex gap-2">
+          <button
+            id="start-btn"
+            class="flex-1 py-3 px-6 rounded-xl text-[0.95rem] font-semibold bg-accent text-black flex items-center justify-center gap-2 transition-all duration-150 hover:bg-accent-dark active:scale-[0.985]"
+          >
+            <span>▶</span> Iniciar
+          </button>
+          <button
+            id="pause-btn"
+            class="hidden flex-1 py-3 px-6 rounded-xl text-[0.95rem] font-semibold bg-hi text-txt border border-line flex items-center justify-center gap-2 transition-all duration-150 hover:border-line-hi active:scale-[0.985]"
+          >
+            <span>⏸</span> Pausar
+          </button>
+          <button
+            id="resume-btn"
+            class="hidden flex-1 py-3 px-6 rounded-xl text-[0.95rem] font-semibold bg-accent text-black flex items-center justify-center gap-2 transition-all duration-150 hover:bg-accent-dark active:scale-[0.985]"
+          >
+            <span>▶</span> Reanudar
+          </button>
+          <button
+            id="stop-btn"
+            class="hidden flex-1 py-3 px-6 rounded-xl text-[0.95rem] font-semibold bg-hi text-dim border border-line flex items-center justify-center gap-2 transition-all duration-150 hover:text-danger hover:border-danger/40 active:scale-[0.985]"
+          >
+            <span>■</span> Detener
+          </button>
+        </div>
 
         <p class="text-[0.7rem] text-dim/70">
           Atajo: <kbd
             class="font-mono bg-hi border border-line rounded px-1.5 py-px text-[0.68rem] text-dim"
             >Espacio</kbd
-          >
+          > — pausa con timer activo
         </p>
       </section>
 
@@ -61,9 +117,7 @@ import Layout from "../layouts/Layout.astro";
         <div
           class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5"
         >
-          <span class="text-[0.65rem] text-dim uppercase tracking-widest"
-            >Hoy</span
-          >
+          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Hoy</span>
           <span
             id="stat-today"
             class="font-mono text-base font-semibold text-txt tabular-nums"
@@ -73,9 +127,7 @@ import Layout from "../layouts/Layout.astro";
         <div
           class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5"
         >
-          <span class="text-[0.65rem] text-dim uppercase tracking-widest"
-            >Esta semana</span
-          >
+          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Esta semana</span>
           <span
             id="stat-week"
             class="font-mono text-base font-semibold text-txt tabular-nums"
@@ -85,9 +137,7 @@ import Layout from "../layouts/Layout.astro";
         <div
           class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5"
         >
-          <span class="text-[0.65rem] text-dim uppercase tracking-widest"
-            >Sesiones</span
-          >
+          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Sesiones</span>
           <span
             id="stat-sessions"
             class="font-mono text-base font-semibold text-txt tabular-nums"
@@ -121,6 +171,13 @@ import Layout from "../layouts/Layout.astro";
               class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
               >⊞ Vista previa</button
             >
+            <label
+              class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent cursor-pointer"
+              title="Importar CSV exportado anteriormente"
+            >
+              ↑ Importar
+              <input id="import-input" type="file" accept=".csv" class="hidden" />
+            </label>
             <button
               id="export-btn"
               class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
@@ -142,13 +199,8 @@ import Layout from "../layouts/Layout.astro";
     aria-modal="true"
     aria-label="Vista previa CSV"
   >
-    <!-- backdrop -->
     <div id="csv-backdrop" class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
-
-    <!-- panel -->
     <div class="relative z-10 w-full sm:max-w-[720px] bg-surface border border-line sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[90dvh] sm:max-h-[80dvh]">
-
-      <!-- header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-line shrink-0">
         <span class="text-sm font-semibold">Vista previa CSV</span>
         <button
@@ -157,13 +209,9 @@ import Layout from "../layouts/Layout.astro";
           title="Cerrar"
         >✕</button>
       </div>
-
-      <!-- table -->
       <div class="overflow-auto flex-1 px-5 py-4">
-        <table id="csv-table" class="w-full text-[0.72rem] font-mono border-collapse min-w-[540px]"></table>
+        <table id="csv-table" class="w-full text-[0.72rem] font-mono border-collapse min-w-[580px]"></table>
       </div>
-
-      <!-- footer -->
       <div class="px-5 py-3.5 border-t border-line shrink-0 flex items-center justify-between gap-3">
         <span id="csv-count" class="text-xs text-dim tabular-nums"></span>
         <button
@@ -171,9 +219,14 @@ import Layout from "../layouts/Layout.astro";
           class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
         >↓ Descargar CSV</button>
       </div>
-
     </div>
   </div>
+
+  <!-- ── Toast ────────────────────────────────────────────────────────── -->
+  <div
+    id="toast"
+    class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-hi border border-line rounded-xl px-4 py-2.5 text-sm text-txt shadow-lg z-50"
+  ></div>
 </Layout>
 
 <script>
@@ -185,11 +238,15 @@ import Layout from "../layouts/Layout.astro";
     duration: number;
     notes: string;
     date: string;
+    project?: string;
   }
+
+  type TimerState = "idle" | "running" | "paused";
 
   // ─── Storage ────────────────────────────────────────────────────────────────
   const STORAGE_KEY = "timelog_entries";
   const RUNNING_KEY = "timelog_running";
+  const NOTIF_KEY = "timelog_notif_threshold";
 
   function loadEntries(): Entry[] {
     try {
@@ -206,7 +263,14 @@ import Layout from "../layouts/Layout.astro";
   function saveRunningState(): void {
     localStorage.setItem(
       RUNNING_KEY,
-      JSON.stringify({ start: startTimestamp, note: noteInput.value.trim() })
+      JSON.stringify({
+        sessionStart,
+        segmentStart: timerState === "running" ? segmentStart : null,
+        accumulatedSeconds,
+        note: noteInput.value.trim(),
+        project: projectInput.value.trim(),
+        timerState,
+      })
     );
   }
 
@@ -214,7 +278,15 @@ import Layout from "../layouts/Layout.astro";
     localStorage.removeItem(RUNNING_KEY);
   }
 
-  function loadRunningState(): { start: number; note: string } | null {
+  function loadRunningState(): {
+    sessionStart?: number;
+    segmentStart?: number | null;
+    accumulatedSeconds?: number;
+    note: string;
+    project?: string;
+    timerState?: TimerState;
+    start?: number; // legacy format
+  } | null {
     try {
       const raw = localStorage.getItem(RUNNING_KEY);
       return raw ? JSON.parse(raw) : null;
@@ -226,16 +298,27 @@ import Layout from "../layouts/Layout.astro";
   // ─── State ──────────────────────────────────────────────────────────────────
   let entries: Entry[] = loadEntries();
   let timerInterval: ReturnType<typeof setInterval> | null = null;
-  let startTimestamp: number | null = null;
+  let timerState: TimerState = "idle";
+  let sessionStart: number | null = null;   // original start of the whole session
+  let segmentStart: number | null = null;   // start of the current running segment
+  let accumulatedSeconds = 0;               // seconds from completed segments (before pause)
   let activeFilter: "all" | "today" | "week" = "all";
+  let pendingDeleteId: number | null = null;
+  let notifThreshold: number | null = (() => {
+    const raw = localStorage.getItem(NOTIF_KEY);
+    return raw ? Number(raw) : null;
+  })();
 
   // ─── DOM refs ───────────────────────────────────────────────────────────────
   const timerEl = document.getElementById("timer")!;
   const statusDot = document.getElementById("status-dot")!;
   const noteInput = document.getElementById("note-input") as HTMLInputElement;
-  const toggleBtn = document.getElementById("toggle-btn")!;
-  const btnIcon = toggleBtn.querySelector(".btn-icon")!;
-  const btnLabel = toggleBtn.querySelector(".btn-label")!;
+  const projectInput = document.getElementById("project-input") as HTMLInputElement;
+  const projectsDatalist = document.getElementById("projects-datalist")!;
+  const startBtn = document.getElementById("start-btn")!;
+  const pauseBtn = document.getElementById("pause-btn")!;
+  const resumeBtn = document.getElementById("resume-btn")!;
+  const stopBtn = document.getElementById("stop-btn")!;
   const recordsList = document.getElementById("records-list")!;
   const statToday = document.getElementById("stat-today")!;
   const statWeek = document.getElementById("stat-week")!;
@@ -248,9 +331,13 @@ import Layout from "../layouts/Layout.astro";
   const csvTable = document.getElementById("csv-table")!;
   const csvCount = document.getElementById("csv-count")!;
   const csvDownloadModal = document.getElementById("csv-download-modal")!;
-  const filterBtns =
-    document.querySelectorAll<HTMLButtonElement>(".filter-btn");
+  const filterBtns = document.querySelectorAll<HTMLButtonElement>(".filter-btn");
   const currentDateEl = document.getElementById("current-date")!;
+  const importInput = document.getElementById("import-input") as HTMLInputElement;
+  const notifBtn = document.getElementById("notif-btn")!;
+  const notifPanel = document.getElementById("notif-panel")!;
+  const notifStatus = document.getElementById("notif-status")!;
+  const toastEl = document.getElementById("toast")!;
 
   // ─── Init date label ────────────────────────────────────────────────────────
   currentDateEl.textContent = new Date().toLocaleDateString("es-ES", {
@@ -301,85 +388,193 @@ import Layout from "../layouts/Layout.astro";
     });
   }
 
+  function esc(str: string): string {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  // ─── Toast ──────────────────────────────────────────────────────────────────
+  let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function showToast(msg: string): void {
+    toastEl.textContent = msg;
+    toastEl.classList.remove("hidden");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.add("hidden"), 2800);
+  }
+
+  // ─── Button area ────────────────────────────────────────────────────────────
+  function updateButtonArea(): void {
+    startBtn.classList.toggle("hidden", timerState !== "idle");
+    pauseBtn.classList.toggle("hidden", timerState !== "running");
+    resumeBtn.classList.toggle("hidden", timerState !== "paused");
+    stopBtn.classList.toggle("hidden", timerState === "idle");
+  }
+
   // ─── Timer ──────────────────────────────────────────────────────────────────
   function startTimer(): void {
-    startTimestamp = Date.now();
+    sessionStart = Date.now();
+    segmentStart = sessionStart;
+    accumulatedSeconds = 0;
     noteInput.disabled = true;
-    btnIcon.textContent = "■";
-    btnLabel.textContent = "Detener";
-    toggleBtn.classList.add("active");
+    projectInput.disabled = true;
+    timerState = "running";
+    statusDot.classList.remove("paused");
     statusDot.classList.add("running");
+    updateButtonArea();
     saveRunningState();
 
     timerInterval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTimestamp!) / 1000);
+      const elapsed =
+        accumulatedSeconds +
+        Math.floor((Date.now() - segmentStart!) / 1000);
       timerEl.textContent = formatClock(elapsed);
     }, 1000);
   }
 
-  function resumeTimer(savedStart: number, savedNote: string): void {
-    startTimestamp = savedStart;
-    noteInput.value = savedNote;
-    noteInput.disabled = true;
-    btnIcon.textContent = "■";
-    btnLabel.textContent = "Detener";
-    toggleBtn.classList.add("active");
-    statusDot.classList.add("running");
+  function pauseTimer(): void {
+    if (timerState !== "running") return;
+    clearInterval(timerInterval!);
+    timerInterval = null;
+    accumulatedSeconds += Math.floor((Date.now() - segmentStart!) / 1000);
+    segmentStart = null;
+    timerState = "paused";
+    statusDot.classList.remove("running");
+    statusDot.classList.add("paused");
+    updateButtonArea();
+    saveRunningState();
+  }
 
-    const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
-    timerEl.textContent = formatClock(elapsed);
+  function resumeTimerFromPause(): void {
+    if (timerState !== "paused") return;
+    segmentStart = Date.now();
+    timerState = "running";
+    statusDot.classList.remove("paused");
+    statusDot.classList.add("running");
+    updateButtonArea();
+    saveRunningState();
 
     timerInterval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTimestamp!) / 1000);
+      const elapsed =
+        accumulatedSeconds +
+        Math.floor((Date.now() - segmentStart!) / 1000);
       timerEl.textContent = formatClock(elapsed);
     }, 1000);
   }
 
   function stopTimer(): void {
-    if (!timerInterval || startTimestamp === null) return;
+    if (timerState === "idle") return;
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
 
-    clearInterval(timerInterval);
-    timerInterval = null;
-    clearRunningState();
+    const totalDuration =
+      timerState === "running"
+        ? accumulatedSeconds + Math.floor((Date.now() - segmentStart!) / 1000)
+        : accumulatedSeconds;
 
     const endTs = Date.now();
-    const duration = Math.floor((endTs - startTimestamp) / 1000);
+    clearRunningState();
 
-    if (duration >= 1) {
+    if (totalDuration >= 1) {
       const entry: Entry = {
-        id: startTimestamp,
-        start: startTimestamp,
+        id: sessionStart!,
+        start: sessionStart!,
         end: endTs,
-        duration,
+        duration: totalDuration,
         notes: noteInput.value.trim(),
         date: getToday(),
+        project: projectInput.value.trim() || undefined,
       };
       entries.unshift(entry);
       saveEntries(entries);
     }
 
-    startTimestamp = null;
+    timerState = "idle";
+    accumulatedSeconds = 0;
+    sessionStart = null;
+    segmentStart = null;
     timerEl.textContent = "00:00:00";
     noteInput.disabled = false;
     noteInput.value = "";
-    btnIcon.textContent = "▶";
-    btnLabel.textContent = "Iniciar";
-    toggleBtn.classList.remove("active");
-    statusDot.classList.remove("running");
-
+    projectInput.disabled = false;
+    projectInput.value = "";
+    statusDot.classList.remove("running", "paused");
+    updateButtonArea();
     updateStats();
     renderList();
+    updateProjectDatalist();
+    checkNotification();
   }
 
-  toggleBtn.addEventListener("click", () => {
-    timerInterval ? stopTimer() : startTimer();
-  });
+  function restoreTimer(
+    saved: NonNullable<ReturnType<typeof loadRunningState>>
+  ): void {
+    // Support both new format (sessionStart) and legacy format (start)
+    const sStart = saved.sessionStart ?? saved.start!;
+    const sAccum = saved.accumulatedSeconds ?? 0;
+    const sTimerState = saved.timerState ?? "running";
+
+    sessionStart = sStart;
+    accumulatedSeconds = sAccum;
+    noteInput.value = saved.note ?? "";
+    projectInput.value = saved.project ?? "";
+    noteInput.disabled = true;
+    projectInput.disabled = true;
+
+    if (sTimerState === "paused") {
+      timerState = "paused";
+      timerEl.textContent = formatClock(accumulatedSeconds);
+      statusDot.classList.add("paused");
+    } else {
+      // Was running — add elapsed time while page was closed
+      segmentStart = saved.segmentStart ?? sStart;
+      const elapsed =
+        sAccum + Math.floor((Date.now() - segmentStart) / 1000);
+      timerEl.textContent = formatClock(elapsed);
+      timerState = "running";
+      statusDot.classList.add("running");
+      timerInterval = setInterval(() => {
+        const e =
+          accumulatedSeconds +
+          Math.floor((Date.now() - segmentStart!) / 1000);
+        timerEl.textContent = formatClock(e);
+      }, 1000);
+    }
+    updateButtonArea();
+  }
+
+  startBtn.addEventListener("click", startTimer);
+  pauseBtn.addEventListener("click", pauseTimer);
+  resumeBtn.addEventListener("click", resumeTimerFromPause);
+  stopBtn.addEventListener("click", stopTimer);
+
+  // ─── Projects ───────────────────────────────────────────────────────────────
+  function getProjects(): string[] {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const e of entries) {
+      if (e.project && !seen.has(e.project)) {
+        seen.add(e.project);
+        result.push(e.project);
+      }
+    }
+    return result;
+  }
+
+  function updateProjectDatalist(): void {
+    projectsDatalist.innerHTML = getProjects()
+      .map((p) => `<option value="${esc(p)}"></option>`)
+      .join("");
+  }
 
   // ─── Stats ──────────────────────────────────────────────────────────────────
   function updateStats(): void {
     const today = getToday();
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-
     let todayTotal = 0;
     let weekTotal = 0;
 
@@ -391,6 +586,54 @@ import Layout from "../layouts/Layout.astro";
     statToday.textContent = formatTotalTime(todayTotal);
     statWeek.textContent = formatTotalTime(weekTotal);
     statSessions.textContent = String(entries.length);
+  }
+
+  // ─── Delete ─────────────────────────────────────────────────────────────────
+  function deleteEntry(id: number): void {
+    entries = entries.filter((e) => e.id !== id);
+    pendingDeleteId = null;
+    saveEntries(entries);
+    updateStats();
+    renderList();
+  }
+
+  // ─── Note editing ────────────────────────────────────────────────────────────
+  function startNoteEdit(id: number, noteEl: HTMLElement): void {
+    const entry = entries.find((e) => e.id === id);
+    if (!entry) return;
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = entry.notes;
+    input.maxLength = 200;
+    input.className =
+      "bg-transparent text-txt text-[0.88rem] font-medium w-full focus:outline-none border-b border-accent/60 pb-px min-w-0";
+
+    noteEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let committed = false;
+
+    function commit() {
+      if (committed) return;
+      committed = true;
+      entry!.notes = input.value.trim();
+      saveEntries(entries);
+      renderList();
+    }
+
+    input.addEventListener("blur", commit);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commit();
+      }
+      if (e.key === "Escape") {
+        committed = true; // cancel without saving
+        renderList();
+      }
+    });
   }
 
   // ─── Render list ────────────────────────────────────────────────────────────
@@ -419,24 +662,34 @@ import Layout from "../layouts/Layout.astro";
     recordsList.innerHTML = filtered
       .map((entry) => {
         const hasNote = entry.notes.length > 0;
+        const noteText = hasNote ? esc(entry.notes) : "— sin nota —";
         const noteClass = hasNote
-          ? "text-[0.88rem] font-medium text-txt leading-snug truncate"
-          : "text-[0.88rem] italic text-dim/60 leading-snug truncate";
+          ? "text-[0.88rem] font-medium text-txt leading-snug truncate cursor-text hover:text-accent/80 transition-colors duration-100"
+          : "text-[0.88rem] italic text-dim/60 leading-snug truncate cursor-text";
+
+        const projectBadge = entry.project
+          ? `<span class="text-[0.62rem] font-medium px-1.5 py-0.5 rounded bg-accent/10 text-accent/80 border border-accent/15 truncate max-w-[90px] shrink-0">${esc(entry.project)}</span>`
+          : "";
+
+        const isConfirming = pendingDeleteId === entry.id;
+        const deleteArea = isConfirming
+          ? `<span class="text-[0.7rem] text-dim whitespace-nowrap">¿Eliminar?</span>
+             <button class="confirm-delete-btn w-7 h-7 flex items-center justify-center rounded-lg text-accent hover:bg-accent/10 border border-accent/25 transition-all duration-150 text-xs" data-id="${entry.id}" title="Confirmar">✓</button>
+             <button class="cancel-delete-btn w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-txt hover:bg-hi border border-line transition-all duration-150 text-xs" title="Cancelar">✕</button>`
+          : `<button class="delete-btn opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-danger hover:bg-danger/[0.08] border border-transparent hover:border-danger/25 transition-all duration-150 text-[0.65rem]" data-id="${entry.id}" title="Eliminar sesión">✕</button>`;
 
         return `
         <li
-          class="group relative flex items-stretch rounded-xl bg-surface border border-line overflow-hidden transition-colors duration-150 hover:border-line-hi"
+          class="group relative flex items-stretch rounded-xl bg-surface border border-line overflow-hidden transition-colors duration-150 hover:border-line-hi${isConfirming ? " border-danger/30" : ""}"
           data-id="${entry.id}"
         >
-          <!-- Left accent strip -->
           <div class="w-[3px] shrink-0 bg-line group-hover:bg-accent/50 transition-colors duration-200"></div>
-
-          <!-- Content -->
           <div class="flex flex-1 items-center gap-3 pl-4 pr-3 py-3.5 min-w-0">
-
-            <!-- Left: note + time -->
             <div class="flex-1 min-w-0">
-              <p class="${noteClass}">${hasNote ? entry.notes : "— sin nota —"}</p>
+              <div class="flex items-center gap-2 min-w-0">
+                <p class="${noteClass}" data-editable-note title="Clic para editar">${noteText}</p>
+                ${projectBadge}
+              </div>
               <div class="flex items-center gap-1 mt-1 font-mono text-[0.7rem] text-dim/70">
                 <span>${formatLocalTime(entry.start)}</span>
                 <span class="opacity-40 mx-0.5">→</span>
@@ -445,34 +698,48 @@ import Layout from "../layouts/Layout.astro";
                 <span>${entry.date}</span>
               </div>
             </div>
-
-            <!-- Right: duration badge + delete -->
             <div class="flex items-center gap-2 shrink-0">
               <span class="font-mono text-[0.78rem] font-bold text-accent bg-accent/[0.07] border border-accent/20 px-2.5 py-1 rounded-lg tabular-nums">
                 ${formatDuration(entry.duration)}
               </span>
-              <button
-                class="delete-btn opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-danger hover:bg-danger/[0.08] border border-transparent hover:border-danger/25 transition-all duration-150 text-[0.65rem]"
-                data-id="${entry.id}"
-                title="Eliminar sesión"
-              >✕</button>
+              ${deleteArea}
             </div>
-
           </div>
         </li>`;
       })
       .join("");
   }
 
-  // ─── Delete ─────────────────────────────────────────────────────────────────
+  // ─── Records event delegation ────────────────────────────────────────────────
   recordsList.addEventListener("click", (e) => {
-    const btn = (e.target as Element).closest<HTMLButtonElement>(".delete-btn");
-    if (!btn) return;
-    const id = Number(btn.dataset.id);
-    entries = entries.filter((e) => e.id !== id);
-    saveEntries(entries);
-    updateStats();
-    renderList();
+    const target = e.target as Element;
+
+    const deleteBtn = target.closest<HTMLButtonElement>(".delete-btn");
+    if (deleteBtn) {
+      pendingDeleteId = Number(deleteBtn.dataset.id);
+      renderList();
+      return;
+    }
+
+    const confirmBtn = target.closest<HTMLButtonElement>(".confirm-delete-btn");
+    if (confirmBtn) {
+      deleteEntry(Number(confirmBtn.dataset.id));
+      return;
+    }
+
+    const cancelBtn = target.closest(".cancel-delete-btn");
+    if (cancelBtn) {
+      pendingDeleteId = null;
+      renderList();
+      return;
+    }
+
+    const noteEl = target.closest<HTMLElement>("[data-editable-note]");
+    if (noteEl) {
+      const li = noteEl.closest<HTMLElement>("li[data-id]");
+      if (li) startNoteEdit(Number(li.dataset.id), noteEl);
+      return;
+    }
   });
 
   // ─── Filters ────────────────────────────────────────────────────────────────
@@ -486,9 +753,7 @@ import Layout from "../layouts/Layout.astro";
   });
 
   // ─── Export CSV ─────────────────────────────────────────────────────────────
-  exportBtn.addEventListener("click", () => {
-    if (entries.length === 0) return;
-
+  function buildCsv(): string {
     const BOM = "\uFEFF";
     const headers = [
       "ID",
@@ -497,9 +762,9 @@ import Layout from "../layouts/Layout.astro";
       "Hora fin",
       "Duración (seg)",
       "Duración",
+      "Proyecto",
       "Nota",
     ];
-
     const rows = entries.map((e) =>
       [
         e.id,
@@ -508,11 +773,16 @@ import Layout from "../layouts/Layout.astro";
         formatLocalTimeSec(e.end),
         e.duration,
         formatDuration(e.duration),
+        `"${(e.project ?? "").replace(/"/g, '""')}"`,
         `"${(e.notes ?? "").replace(/"/g, '""')}"`,
-      ].join(","),
+      ].join(",")
     );
+    return BOM + [headers.join(","), ...rows].join("\n");
+  }
 
-    const csv = BOM + [headers.join(","), ...rows].join("\n");
+  exportBtn.addEventListener("click", () => {
+    if (entries.length === 0) return;
+    const csv = buildCsv();
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -524,23 +794,111 @@ import Layout from "../layouts/Layout.astro";
     URL.revokeObjectURL(url);
   });
 
-  // ─── CSV Preview ────────────────────────────────────────────────────────────
-  function esc(str: string): string {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // ─── Import CSV ─────────────────────────────────────────────────────────────
+  function parseCSVLine(line: string): string[] {
+    const result: string[] = [];
+    let cur = "";
+    let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQ && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQ = !inQ;
+        }
+      } else if (ch === "," && !inQ) {
+        result.push(cur);
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    result.push(cur);
+    return result;
   }
 
+  importInput.addEventListener("change", async () => {
+    const file = importInput.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const lines = text
+        .replace(/^\uFEFF/, "")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      if (lines.length < 2) {
+        showToast("El archivo no tiene datos");
+        return;
+      }
+
+      const headers = parseCSVLine(lines[0]);
+      const idx = (h: string) => headers.indexOf(h);
+      const idIdx = idx("ID");
+      const dateIdx = idx("Fecha");
+      const durIdx = idx("Duración (seg)");
+      const noteIdx = idx("Nota");
+      const projIdx = idx("Proyecto");
+
+      if (idIdx < 0 || dateIdx < 0 || durIdx < 0) {
+        showToast("Formato CSV no reconocido");
+        return;
+      }
+
+      const existingIds = new Set(entries.map((e) => e.id));
+      let imported = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        const id = Number(cols[idIdx]);
+        if (!id || existingIds.has(id)) continue;
+        const duration = Number(cols[durIdx]);
+        const rawNote = noteIdx >= 0 ? (cols[noteIdx] ?? "") : "";
+        const rawProj = projIdx >= 0 ? (cols[projIdx] ?? "") : "";
+        entries.push({
+          id,
+          start: id,
+          end: id + duration * 1000,
+          duration,
+          notes: rawNote.replace(/^"|"$/g, "").replace(/""/g, '"'),
+          date: cols[dateIdx] ?? "",
+          project: rawProj.replace(/^"|"$/g, "") || undefined,
+        });
+        imported++;
+      }
+
+      entries.sort((a, b) => b.start - a.start);
+      saveEntries(entries);
+      updateStats();
+      renderList();
+      updateProjectDatalist();
+      importInput.value = "";
+      showToast(
+        imported > 0
+          ? `${imported} registro${imported === 1 ? "" : "s"} importado${imported === 1 ? "" : "s"}`
+          : "No hay registros nuevos"
+      );
+    } catch {
+      showToast("Error al leer el archivo");
+    }
+  });
+
+  // ─── CSV Preview ────────────────────────────────────────────────────────────
   function openCsvPreview(): void {
     if (entries.length === 0) return;
 
-    const cols = ["Fecha", "Inicio", "Fin", "Duración", "Nota"];
+    const cols = ["Fecha", "Inicio", "Fin", "Duración", "Proyecto", "Nota"];
     const thCls =
       "px-3 py-2 text-left text-dim font-medium border-b border-line bg-hi sticky top-0";
-    const tdCls = "px-3 py-2 border-b border-line/60 text-txt/90 max-w-[160px] truncate";
+    const tdCls =
+      "px-3 py-2 border-b border-line/60 text-txt/90 max-w-[140px] truncate";
     const tdAccent =
       "px-3 py-2 border-b border-line/60 text-accent font-bold tabular-nums";
 
     const thead = `<thead><tr>${cols.map((c) => `<th class="${thCls}">${c}</th>`).join("")}</tr></thead>`;
-
     const tbody =
       "<tbody>" +
       entries
@@ -551,8 +909,9 @@ import Layout from "../layouts/Layout.astro";
               <td class="${tdCls} tabular-nums">${esc(formatLocalTimeSec(e.start))}</td>
               <td class="${tdCls} tabular-nums">${esc(formatLocalTimeSec(e.end))}</td>
               <td class="${tdAccent}">${esc(formatDuration(e.duration))}</td>
+              <td class="${tdCls} ${e.project ? "" : "italic text-dim/50"}">${e.project ? esc(e.project) : "—"}</td>
               <td class="${tdCls} ${e.notes ? "" : "italic text-dim/50"}">${e.notes ? esc(e.notes) : "—"}</td>
-            </tr>`,
+            </tr>`
         )
         .join("") +
       "</tbody>";
@@ -573,34 +932,134 @@ import Layout from "../layouts/Layout.astro";
   csvBackdrop.addEventListener("click", closeCsvPreview);
   csvDownloadModal.addEventListener("click", () => exportBtn.click());
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !csvModal.classList.contains("hidden")) {
-      closeCsvPreview();
-    }
-  });
-
-  // ─── Keyboard shortcut ──────────────────────────────────────────────────────
-  document.addEventListener("keydown", (e) => {
-    if (e.code === "Space" && document.activeElement !== noteInput) {
-      e.preventDefault();
-      timerInterval ? stopTimer() : startTimer();
-    }
-  });
-
-  // ─── Boot ───────────────────────────────────────────────────────────────────
-  updateStats();
-  renderList();
-
-  // Restore timer if the page was reloaded while running (e.g. iOS killed the tab)
-  const savedRunning = loadRunningState();
-  if (savedRunning) {
-    resumeTimer(savedRunning.start, savedRunning.note);
+  // ─── Notifications ──────────────────────────────────────────────────────────
+  async function requestNotifPermission(): Promise<boolean> {
+    if (!("Notification" in window)) return false;
+    if (Notification.permission === "granted") return true;
+    if (Notification.permission === "denied") return false;
+    return (await Notification.requestPermission()) === "granted";
   }
 
-  // When the page becomes visible again after being backgrounded, sync display immediately
+  function saveNotifThreshold(h: number | null): void {
+    if (h === null) localStorage.removeItem(NOTIF_KEY);
+    else localStorage.setItem(NOTIF_KEY, String(h));
+  }
+
+  function checkNotification(): void {
+    if (
+      !notifThreshold ||
+      !("Notification" in window) ||
+      Notification.permission !== "granted"
+    )
+      return;
+
+    const today = getToday();
+    const todayTotal = entries
+      .filter((e) => e.date === today)
+      .reduce((s, e) => s + e.duration, 0);
+
+    const thresholdSecs = notifThreshold * 3600;
+    const firedKey = `timelog_notif_fired_${today}`;
+    const fired: number[] = JSON.parse(
+      localStorage.getItem(firedKey) ?? "[]"
+    );
+
+    if (todayTotal >= thresholdSecs && !fired.includes(notifThreshold)) {
+      new Notification("TimeLog", {
+        body: `¡${notifThreshold}h de trabajo registradas hoy!`,
+        icon: "/icon-192.png",
+      });
+      fired.push(notifThreshold);
+      localStorage.setItem(firedKey, JSON.stringify(fired));
+    }
+  }
+
+  function updateNotifUI(): void {
+    document
+      .querySelectorAll<HTMLButtonElement>(".notif-opt")
+      .forEach((btn) => {
+        const btnHours =
+          btn.dataset.hours === "" ? null : Number(btn.dataset.hours);
+        const isActive = btnHours === notifThreshold;
+        btn.classList.toggle("border-accent", isActive);
+        btn.classList.toggle("text-accent", isActive);
+        btn.classList.toggle("border-line", !isActive);
+        btn.classList.toggle("text-dim", !isActive);
+      });
+
+    if (!("Notification" in window)) {
+      notifStatus.textContent = "No disponible en este navegador";
+    } else if (Notification.permission === "denied") {
+      notifStatus.textContent = "Notificaciones bloqueadas en el navegador";
+    } else if (notifThreshold) {
+      notifStatus.textContent = `Aviso al alcanzar ${notifThreshold}h hoy`;
+    } else {
+      notifStatus.textContent = "Desactivadas";
+    }
+  }
+
+  notifBtn.addEventListener("click", () => {
+    notifPanel.classList.toggle("hidden");
+    if (!notifPanel.classList.contains("hidden")) updateNotifUI();
+  });
+
+  document
+    .querySelectorAll<HTMLButtonElement>(".notif-opt")
+    .forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const hours =
+          btn.dataset.hours === "" ? null : Number(btn.dataset.hours);
+        if (hours !== null) {
+          const granted = await requestNotifPermission();
+          if (!granted) {
+            notifStatus.textContent = "Permiso denegado";
+            return;
+          }
+        }
+        notifThreshold = hours;
+        saveNotifThreshold(notifThreshold);
+        updateNotifUI();
+      });
+    });
+
+  // ─── Keyboard shortcuts ─────────────────────────────────────────────────────
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (!csvModal.classList.contains("hidden")) {
+        closeCsvPreview();
+        return;
+      }
+      if (pendingDeleteId !== null) {
+        pendingDeleteId = null;
+        renderList();
+        return;
+      }
+    }
+
+    if (
+      e.code === "Space" &&
+      document.activeElement !== noteInput &&
+      document.activeElement !== projectInput
+    ) {
+      e.preventDefault();
+      if (timerState === "idle") startTimer();
+      else if (timerState === "running") pauseTimer();
+      else if (timerState === "paused") resumeTimerFromPause();
+    }
+  });
+
+  // ─── Boot ────────────────────────────────────────────────────────────────────
+  updateStats();
+  renderList();
+  updateProjectDatalist();
+
+  const savedRunning = loadRunningState();
+  if (savedRunning) restoreTimer(savedRunning);
+
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && startTimestamp !== null) {
-      const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
+    if (!document.hidden && timerState === "running" && segmentStart !== null) {
+      const elapsed =
+        accumulatedSeconds + Math.floor((Date.now() - segmentStart) / 1000);
       timerEl.textContent = formatClock(elapsed);
     }
   });

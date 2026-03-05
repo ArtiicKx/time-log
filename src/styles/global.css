@@ -38,16 +38,9 @@ input  { font-family: inherit; }
   animation: pulse-dot 1.4s ease-in-out infinite;
 }
 
-#toggle-btn.active {
-  background-color: var(--color-hi);
-  color: var(--color-txt);
-  border: 1px solid var(--color-line);
-}
-
-#toggle-btn.active:hover {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-  background-color: color-mix(in srgb, var(--color-danger) 6%, transparent);
+#status-dot.paused {
+  background-color: #f59e0b;
+  animation: pulse-dot 1.4s ease-in-out infinite;
 }
 
 .filter-btn.active {
