@@ -1,4 +1,4 @@
-const CACHE = 'timelog-v2';
+const CACHE = 'timelog-v3';
 
 const PRECACHE = [
   '/',
@@ -11,7 +11,7 @@ self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(PRECACHE))
   );
-  self.skipWaiting();
+  // No skipWaiting() here — wait for the user to accept the update
 });
 
 self.addEventListener('activate', (e) => {
@@ -21,6 +21,10 @@ self.addEventListener('activate', (e) => {
     )
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', (e) => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', (e) => {

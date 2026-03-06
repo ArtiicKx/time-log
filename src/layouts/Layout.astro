@@ -47,10 +47,37 @@ const { title = "TimeLog" } = Astro.props;
     <!-- Service Worker registration -->
     <script>
       if ("serviceWorker" in navigator) {
+        function showUpdateBanner(waiting: ServiceWorker) {
+          const banner = document.getElementById("update-banner");
+          const btn = document.getElementById("update-btn");
+          if (!banner || !btn) return;
+          banner.classList.remove("hidden");
+          btn.addEventListener("click", () => {
+            waiting.postMessage("SKIP_WAITING");
+            banner.classList.add("hidden");
+          });
+        }
+
         window.addEventListener("load", () => {
           navigator.serviceWorker
             .register("/sw.js")
-            .then((reg) => reg.update())
+            .then((reg) => {
+              // SW already waiting (e.g. installed while user had tab open)
+              if (reg.waiting) {
+                showUpdateBanner(reg.waiting);
+                return;
+              }
+              // Detect new SW finishing install
+              reg.addEventListener("updatefound", () => {
+                const newSW = reg.installing;
+                if (!newSW) return;
+                newSW.addEventListener("statechange", () => {
+                  if (newSW.state === "installed" && navigator.serviceWorker.controller) {
+                    showUpdateBanner(newSW);
+                  }
+                });
+              });
+            })
             .catch(() => {});
 
           navigator.serviceWorker.addEventListener("controllerchange", () => {
