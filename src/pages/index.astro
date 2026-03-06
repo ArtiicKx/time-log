@@ -1,6 +1,5 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import timelogScript from "../scripts/timelog.ts?url";
 ---
 
 <Layout title="TimeLog">
@@ -242,5 +241,7 @@ import timelogScript from "../scripts/timelog.ts?url";
   ></div>
 </Layout>
 
-<script type='module' src={timelogScript}></script>
+<script>
+  import "../scripts/timelog.ts";
+</script>
 
