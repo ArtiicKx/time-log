@@ -31,7 +31,7 @@ let sessionStart: number | null = null;
 let segmentStart: number | null = null;
 let accumulatedSeconds = 0;
 let activeFilter: "all" | "today" | "week" = "all";
-let pendingDeleteId: number | null = null;
+let undoEntry: { entry: Entry; index: number } | null = null;
 let notifThreshold: number | null = loadNotifThreshold();
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -63,6 +63,8 @@ const notifBtn = document.getElementById("notif-btn") as HTMLButtonElement;
 const notifPanel = document.getElementById("notif-panel") as HTMLElement;
 const notifStatus = document.getElementById("notif-status") as HTMLElement;
 const toastEl = document.getElementById("toast") as HTMLElement;
+const toastMsg = document.getElementById("toast-msg") as HTMLElement;
+const toastAction = document.getElementById("toast-action") as HTMLButtonElement;
 
 function getRunningElapsedSeconds(): number {
   if (timerState !== "running" || segmentStart === null) return accumulatedSeconds;
@@ -80,11 +82,26 @@ function persistRunningState(): void {
   });
 }
 
-function showToast(message: string): void {
-  toastEl.textContent = message;
+function showToast(message: string, action?: { label: string; cb: () => void }): void {
+  toastMsg.textContent = message;
+  if (action) {
+    toastAction.textContent = action.label;
+    toastAction.classList.remove("hidden");
+    toastAction.onclick = () => {
+      if (toastTimer) clearTimeout(toastTimer);
+      toastEl.classList.add("hidden");
+      action.cb();
+    };
+  } else {
+    toastAction.classList.add("hidden");
+    toastAction.onclick = null;
+  }
   toastEl.classList.remove("hidden");
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.add("hidden"), 2800);
+  toastTimer = setTimeout(() => {
+    toastEl.classList.add("hidden");
+    undoEntry = null;
+  }, 4000);
 }
 
 function updateButtonArea(): void {
@@ -260,11 +277,25 @@ function updateStats(): void {
 }
 
 function deleteEntry(id: number): void {
-  entries = entries.filter((entry) => entry.id !== id);
-  pendingDeleteId = null;
+  const index = entries.findIndex((e) => e.id === id);
+  if (index === -1) return;
+  const [removed] = entries.splice(index, 1);
+  undoEntry = { entry: removed, index };
   saveEntries(entries);
   updateStats();
   renderList();
+  showToast("Registro eliminado", {
+    label: "Deshacer",
+    cb: () => {
+      if (!undoEntry) return;
+      entries.splice(undoEntry.index, 0, undoEntry.entry);
+      entries.sort((a, b) => b.start - a.start);
+      undoEntry = null;
+      saveEntries(entries);
+      updateStats();
+      renderList();
+    },
+  });
 }
 
 function startNoteEdit(id: number, noteEl: HTMLElement): void {
@@ -306,6 +337,65 @@ function startNoteEdit(id: number, noteEl: HTMLElement): void {
   });
 }
 
+function startTimeEdit(id: number, timeRow: HTMLElement): void {
+  const entry = entries.find((e) => e.id === id);
+  if (!entry) return;
+
+  const toHHMM = (ts: number) => {
+    const d = new Date(ts);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+
+  const form = document.createElement("div");
+  form.className = "flex items-center gap-1.5 font-mono text-[0.7rem] mt-1 flex-wrap";
+  form.innerHTML = `
+    <input type="time" value="${toHHMM(entry.start)}" id="te-start-${id}"
+      class="bg-hi border border-line rounded px-1.5 py-px text-txt focus:outline-none focus:border-accent tabular-nums">
+    <span class="opacity-40">&#8594;</span>
+    <input type="time" value="${toHHMM(entry.end)}" id="te-end-${id}"
+      class="bg-hi border border-line rounded px-1.5 py-px text-txt focus:outline-none focus:border-accent tabular-nums">
+    <button class="te-save px-2 py-px rounded bg-accent/15 text-accent border border-accent/30 text-[0.65rem] font-semibold hover:bg-accent/25 transition-colors">OK</button>
+    <button class="te-cancel px-2 py-px rounded bg-hi text-dim border border-line text-[0.65rem] hover:text-txt transition-colors">Cancelar</button>
+  `;
+
+  timeRow.replaceWith(form);
+  (form.querySelector(`#te-start-${id}`) as HTMLInputElement).focus();
+
+  function commitTimeEdit(): void {
+    const startInput = form.querySelector(`#te-start-${id}`) as HTMLInputElement;
+    const endInput = form.querySelector(`#te-end-${id}`) as HTMLInputElement;
+    if (!startInput.value || !endInput.value) { renderList(); return; }
+
+    const origDate = new Date(entry!.start);
+    const [sh, sm] = startInput.value.split(":").map(Number);
+    const [eh, em] = endInput.value.split(":").map(Number);
+
+    const newStart = new Date(origDate);
+    newStart.setHours(sh, sm, 0, 0);
+    const newEnd = new Date(origDate);
+    newEnd.setHours(eh, em, 0, 0);
+    if (newEnd <= newStart) newEnd.setDate(newEnd.getDate() + 1);
+
+    const newDuration = Math.floor((newEnd.getTime() - newStart.getTime()) / 1000);
+    if (newDuration < 1) { renderList(); return; }
+
+    entry!.start = newStart.getTime();
+    entry!.end = newEnd.getTime();
+    entry!.duration = newDuration;
+    entries.sort((a, b) => b.start - a.start);
+    saveEntries(entries);
+    updateStats();
+    renderList();
+  }
+
+  form.querySelector(".te-save")?.addEventListener("click", commitTimeEdit);
+  form.querySelector(".te-cancel")?.addEventListener("click", () => renderList());
+  form.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); commitTimeEdit(); }
+    if (e.key === "Escape") renderList();
+  });
+}
+
 function getFilteredEntries(): Entry[] {
   const today = getToday();
   if (activeFilter === "today") return entries.filter((entry) => entry.date === today);
@@ -337,38 +427,35 @@ function renderList(): void {
         ? `<span class="text-[0.62rem] font-medium px-1.5 py-0.5 rounded bg-accent/10 text-accent/80 border border-accent/15 truncate max-w-[90px] shrink-0">${esc(entry.project)}</span>`
         : "";
 
-      const isConfirming = pendingDeleteId === entry.id;
-      const deleteArea = isConfirming
-        ? `<span class="text-[0.7rem] text-dim whitespace-nowrap">Eliminar?</span>
-           <button class="confirm-delete-btn w-7 h-7 flex items-center justify-center rounded-lg text-accent hover:bg-accent/10 border border-accent/25 transition-all duration-150 text-xs" data-id="${entry.id}" title="Confirmar">OK</button>
-           <button class="cancel-delete-btn w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-txt hover:bg-hi border border-line transition-all duration-150 text-xs" title="Cancelar">X</button>`
-        : `<button class="delete-btn opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-danger hover:bg-danger/[0.08] border border-transparent hover:border-danger/25 transition-all duration-150 text-[0.65rem]" data-id="${entry.id}" title="Eliminar sesion">X</button>`;
-
       return `
       <li
-        class="group relative flex items-stretch rounded-xl bg-surface border border-line overflow-hidden transition-colors duration-150 hover:border-line-hi${isConfirming ? " border-danger/30" : ""}"
+        class="group relative flex items-stretch rounded-xl bg-surface border border-line overflow-hidden transition-colors duration-150 hover:border-line-hi focus:outline-none focus:border-accent/50"
         data-id="${entry.id}"
+        tabindex="0"
+        aria-label="Registro ${formatLocalTime(entry.start)} – ${formatLocalTime(entry.end)}, ${formatDuration(entry.duration)}${entry.notes ? ", " + entry.notes : ""}"
       >
-        <div class="w-[3px] shrink-0 bg-line group-hover:bg-accent/50 transition-colors duration-200"></div>
+        <div class="w-[3px] shrink-0 bg-line group-hover:bg-accent/50 group-focus:bg-accent/50 transition-colors duration-200"></div>
         <div class="flex flex-1 items-center gap-3 pl-4 pr-3 py-3.5 min-w-0">
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 min-w-0">
-              <p class="${noteClass}" data-editable-note title="Clic para editar">${noteText}</p>
+            <div class="flex items-center gap-1.5 min-w-0">
+              <p class="${noteClass}" data-editable-note title="Clic o Enter para editar">${noteText}</p>
+              <span class="opacity-0 group-hover:opacity-50 group-focus-within:opacity-50 text-dim text-[0.62rem] shrink-0 transition-opacity duration-100 pointer-events-none select-none">✎</span>
               ${projectBadge}
             </div>
-            <div class="flex items-center gap-1 mt-1 font-mono text-[0.7rem] text-dim/70">
+            <div class="flex items-center gap-1 mt-1 font-mono text-[0.7rem] text-dim/70" data-time-row data-id="${entry.id}">
               <span>${formatLocalTime(entry.start)}</span>
               <span class="opacity-40 mx-0.5">-&gt;</span>
               <span>${formatLocalTime(entry.end)}</span>
               <span class="opacity-25 mx-1.5">.</span>
               <span>${entry.date}</span>
+              <button class="edit-time-btn opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 ml-1.5 text-dim hover:text-accent transition-all duration-150 text-[0.65rem]" data-id="${entry.id}" title="Editar horario" aria-label="Editar horario">✎</button>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <span class="font-mono text-[0.78rem] font-bold text-accent bg-accent/[0.07] border border-accent/20 px-2.5 py-1 rounded-lg tabular-nums">
               ${formatDuration(entry.duration)}
             </span>
-            ${deleteArea}
+            <button class="delete-btn opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-danger hover:bg-danger/[0.08] border border-transparent hover:border-danger/25 transition-all duration-150 text-[0.65rem]" data-id="${entry.id}" title="Eliminar" aria-label="Eliminar registro">✕</button>
           </div>
         </div>
       </li>`;
@@ -500,21 +587,17 @@ recordsList.addEventListener("click", (event) => {
 
   const deleteBtn = target.closest<HTMLButtonElement>(".delete-btn");
   if (deleteBtn) {
-    pendingDeleteId = Number(deleteBtn.dataset.id);
-    renderList();
+    deleteEntry(Number(deleteBtn.dataset.id));
     return;
   }
 
-  const confirmBtn = target.closest<HTMLButtonElement>(".confirm-delete-btn");
-  if (confirmBtn) {
-    deleteEntry(Number(confirmBtn.dataset.id));
-    return;
-  }
-
-  const cancelBtn = target.closest(".cancel-delete-btn");
-  if (cancelBtn) {
-    pendingDeleteId = null;
-    renderList();
+  const timeEditBtn = target.closest<HTMLButtonElement>(".edit-time-btn");
+  if (timeEditBtn) {
+    const item = timeEditBtn.closest<HTMLElement>("li[data-id]");
+    if (item) {
+      const timeRow = item.querySelector<HTMLElement>("[data-time-row]");
+      if (timeRow) startTimeEdit(Number(timeEditBtn.dataset.id), timeRow);
+    }
     return;
   }
 
@@ -522,6 +605,27 @@ recordsList.addEventListener("click", (event) => {
   if (!noteEl) return;
   const item = noteEl.closest<HTMLElement>("li[data-id]");
   if (item) startNoteEdit(Number(item.dataset.id), noteEl);
+});
+
+recordsList.addEventListener("keydown", (event) => {
+  const li = (event.target as Element).closest<HTMLElement>("li[data-id]");
+  if (!li) return;
+  const id = Number(li.dataset.id);
+
+  if (event.key === "Delete" || event.key === "Backspace") {
+    // Only delete if not currently editing a field inside the li
+    if (document.activeElement === li) {
+      event.preventDefault();
+      deleteEntry(id);
+    }
+    return;
+  }
+
+  if (event.key === "Enter" && document.activeElement === li) {
+    event.preventDefault();
+    const noteEl = li.querySelector<HTMLElement>("[data-editable-note]");
+    if (noteEl) startNoteEdit(id, noteEl);
+  }
 });
 
 filterBtns.forEach((button) => {
@@ -560,12 +664,6 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     if (!csvModal.classList.contains("hidden")) {
       closeCsvPreview();
-      return;
-    }
-
-    if (pendingDeleteId !== null) {
-      pendingDeleteId = null;
-      renderList();
       return;
     }
   }

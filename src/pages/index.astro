@@ -238,8 +238,11 @@ import timelogScript from "../scripts/timelog.ts?url";
   <!-- ── Toast ────────────────────────────────────────────────────────── -->
   <div
     id="toast"
-    class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-hi border border-line rounded-xl px-4 py-2.5 text-sm text-txt shadow-lg z-50"
-  ></div>
+    class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-hi border border-line rounded-xl px-4 py-2.5 text-sm text-txt shadow-lg z-50 flex items-center gap-3 whitespace-nowrap"
+  >
+    <span id="toast-msg"></span>
+    <button id="toast-action" class="hidden text-accent font-semibold text-xs hover:underline shrink-0"></button>
+  </div>
 </Layout>
 
 <script type='module' src={timelogScript}></script>
