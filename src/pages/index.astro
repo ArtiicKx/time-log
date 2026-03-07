@@ -1,6 +1,5 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import timelogScript from "../scripts/timelog.ts?url";
 ---
 
 <Layout title="TimeLog">
@@ -223,18 +222,6 @@ import timelogScript from "../scripts/timelog.ts?url";
     </div>
   </div>
 
-  <!-- ── Update banner ──────────────────────────────────────────────── -->
-  <div
-    id="update-banner"
-    class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-surface border border-accent/40 rounded-xl px-4 py-3 shadow-lg flex items-center gap-3 animate-slide-up"
-  >
-    <span class="text-sm text-txt">Nueva version disponible</span>
-    <button
-      id="update-btn"
-      class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-black transition-colors hover:bg-accent-dark"
-    >Actualizar</button>
-  </div>
-
   <!-- ── Toast ────────────────────────────────────────────────────────── -->
   <div
     id="toast"
@@ -245,5 +232,7 @@ import timelogScript from "../scripts/timelog.ts?url";
   </div>
 </Layout>
 
-<script type='module' src={timelogScript}></script>
+<script>
+  import "../scripts/timelog.ts";
+</script>
 
