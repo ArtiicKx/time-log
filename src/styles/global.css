@@ -29,11 +29,13 @@
     background-color: var(--color-bg);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
 
   body {
     min-height: 100dvh;
     font-family: var(--font-body);
+    overflow-x: hidden;
   }
 
   button,
@@ -265,6 +267,7 @@
 
   .field-input {
     @apply w-full rounded-lg border border-line bg-hi/60 px-3.5 py-2.5 text-[0.9rem] text-txt placeholder:text-dim/60;
+    min-width: 0;
     transition: border-color 0.15s ease, background-color 0.15s ease;
     outline: none;
   }
@@ -733,42 +736,146 @@
 /* ── Responsive ──────────────────────────────────────────── */
 
 @media (max-width: 960px) {
+  /* Layout: padding en vez de width reducido para evitar scroll lateral */
+  .app-shell {
+    width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Topbar: fondo cubre todo el viewport con márgenes negativos */
+  .topbar {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Grids que colapsan a 1 columna */
   .hero-grid,
   .insight-grid,
   .settings-grid,
-  .stats-grid,
   .filter-grid,
   .button-grid,
-  .button-grid.compact-grid,
-  .report-grid,
   .modal-grid {
     grid-template-columns: 1fr;
   }
 
-  .app-shell {
-    width: min(100% - 1rem, 100%);
+  /* 2 columnas en móvil para mejor densidad */
+  .stats-grid,
+  .report-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Botones de acción en 2 columnas */
+  .button-grid.compact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 640px) {
+  /* Prevenir auto-zoom en iOS (font-size < 16px lo dispara) */
+  .field-input {
+    font-size: 1rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  /* Topbar más compacto */
+  .topbar {
+    padding-top: 0.875rem;
+    padding-bottom: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  /* Botones más grandes para táctil */
+  .big-btn {
+    min-height: 3rem;
+    font-size: 1rem;
+  }
+
+  /* Chip buttons más fáciles de tocar */
+  .chip-btn {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.85rem;
+  }
+
+  /* Paneles sin bordes redondeados extremos innecesarios */
   .panel,
   .modal-card,
   .record-card {
     @apply rounded-xl;
   }
 
+  /* Cards de registro: columna en móvil */
   .record-main,
   .record-meta,
   .split-row {
     @apply flex-col items-stretch;
   }
 
-  .timer-display {
-    @apply text-[clamp(2.8rem,16vw,4.5rem)];
+  /* Acciones de registro más anchas */
+  .record-actions {
+    gap: 0.5rem;
   }
 
-  .topbar {
-    padding-top: 0.875rem;
-    padding-bottom: 0.75rem;
+  .record-action {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  /* Timer más grande en móvil */
+  .timer-display {
+    @apply text-[clamp(3rem,18vw,5rem)];
+  }
+
+  /* Modal: bottom sheet en móvil */
+  .modal-shell {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-card {
+    max-height: 95dvh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 1.5rem);
+  }
+
+  /* Toast ancho completo en móvil */
+  .toast {
+    width: calc(100% - 2rem);
+    bottom: 1.25rem;
+  }
+
+  /* Reducir padding en paneles para aprovechar espacio */
+  .panel {
+    padding: 1rem;
+  }
+
+  .timer-panel {
+    padding: 1rem;
+  }
+
+  /* Section head compacto */
+  .section-head {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .section-title {
+    font-size: 1.05rem;
+  }
+
+  /* Stat cards más compactos */
+  .stat-card {
+    padding: 0.875rem;
+  }
+
+  .stat-value {
+    font-size: 1.4rem;
   }
 }
