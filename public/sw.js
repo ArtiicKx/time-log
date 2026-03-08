@@ -1,4 +1,4 @@
-const CACHE = 'timelog-v4';
+const CACHE = 'timelog-v5';
 
 const PRECACHE = [
   '/',

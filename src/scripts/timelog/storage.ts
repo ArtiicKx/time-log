@@ -1,8 +1,15 @@
-import type { Entry, RunningState } from "./types";
+import type { Entry, Preferences, RunningState } from "./types";
 
 const STORAGE_KEY = "timelog_entries";
 const RUNNING_KEY = "timelog_running";
 const NOTIF_KEY = "timelog_notif_threshold";
+const PREFS_KEY = "timelog_preferences";
+
+const DEFAULT_PREFERENCES: Preferences = {
+  dailyGoalHours: 8,
+  weeklyGoalHours: 40,
+  lastExportAt: null,
+};
 
 function normalizeEntry(raw: unknown): Entry | null {
   if (!raw || typeof raw !== "object") return null;
@@ -86,4 +93,33 @@ export function saveNotifThreshold(hours: number | null): void {
   }
 
   localStorage.setItem(NOTIF_KEY, String(hours));
+}
+
+function normalizeGoal(raw: unknown, fallback: number): number {
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return fallback;
+  return Math.min(120, Math.round(value * 10) / 10);
+}
+
+export function loadPreferences(): Preferences {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "null");
+    if (!raw || typeof raw !== "object") return { ...DEFAULT_PREFERENCES };
+
+    const candidate = raw as Record<string, unknown>;
+    return {
+      dailyGoalHours: normalizeGoal(candidate.dailyGoalHours, DEFAULT_PREFERENCES.dailyGoalHours),
+      weeklyGoalHours: normalizeGoal(candidate.weeklyGoalHours, DEFAULT_PREFERENCES.weeklyGoalHours),
+      lastExportAt:
+        typeof candidate.lastExportAt === "number" && Number.isFinite(candidate.lastExportAt)
+          ? candidate.lastExportAt
+          : null,
+    };
+  } catch {
+    return { ...DEFAULT_PREFERENCES };
+  }
+}
+
+export function savePreferences(preferences: Preferences): void {
+  localStorage.setItem(PREFS_KEY, JSON.stringify(preferences));
 }

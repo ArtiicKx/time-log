@@ -1,41 +1,89 @@
 import {
+  buildClipboardReport,
+  describeLastExport,
+  findMergeCandidates,
+  getAvailableProjects,
+  getFilterLabel,
+  getFilteredEntries,
+  getProjectSummaries,
+  getReportSummary,
+} from "./timelog/analytics";
+import { buildCsv, parseCsvEntries } from "./timelog/csv";
+import {
+  adjustEndTimestamp,
+  buildLocalTimestamp,
   esc,
   formatClock,
+  formatDateInput,
   formatDuration,
+  formatHoursCompact,
   formatLocalTime,
   formatLocalTimeSec,
   formatTotalTime,
-  getCurrentDateLabel,
+  getDateKeyFromTimestamp,
   getStartOfCurrentWeek,
   getToday,
   getTodayTotalSeconds,
-  isEntryInCurrentWeek,
 } from "./timelog/date";
-import { buildCsv, parseCsvEntries } from "./timelog/csv";
 import { evaluateNotification, requestNotifPermission } from "./timelog/notifications";
 import {
   clearRunningState,
   loadEntries,
   loadNotifThreshold,
+  loadPreferences,
   loadRunningState,
   saveEntries,
   saveNotifThreshold,
+  savePreferences,
   saveRunningState,
 } from "./timelog/storage";
-import type { Entry, RunningState, TimerState } from "./timelog/types";
+import type {
+  Entry,
+  FilterState,
+  InsightPeriod,
+  Preferences,
+  RunningState,
+  TimerState,
+} from "./timelog/types";
 
-let entries: Entry[] = loadEntries();
+function formatCurrentDateLabel(): string {
+  return new Date().toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function toTimeInput(ts: number): string {
+  const date = new Date(ts);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+let entries: Entry[] = loadEntries().sort((a, b) => b.start - a.start);
+let preferences: Preferences = loadPreferences();
 let timerInterval: ReturnType<typeof setInterval> | null = null;
 let timerState: TimerState = "idle";
 let sessionStart: number | null = null;
 let segmentStart: number | null = null;
 let accumulatedSeconds = 0;
-let activeFilter: "all" | "today" | "week" = "all";
 let undoEntry: { entry: Entry; index: number } | null = null;
 let notifThreshold: number | null = loadNotifThreshold();
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
+let insightPeriod: InsightPeriod = "week";
+let previewEntries: Entry[] = [];
+let lastSaveMessage = "Historial recuperado en este navegador";
+
+const filterState: FilterState = {
+  period: "all",
+  search: "",
+  project: "",
+  from: "",
+  to: "",
+};
 
 const timerEl = document.getElementById("timer") as HTMLElement;
+const timerStateLabel = document.getElementById("timer-state-label") as HTMLElement;
 const statusDot = document.getElementById("status-dot") as HTMLElement;
 const noteInput = document.getElementById("note-input") as HTMLInputElement;
 const projectInput = document.getElementById("project-input") as HTMLInputElement;
@@ -48,27 +96,84 @@ const recordsList = document.getElementById("records-list") as HTMLElement;
 const statToday = document.getElementById("stat-today") as HTMLElement;
 const statWeek = document.getElementById("stat-week") as HTMLElement;
 const statSessions = document.getElementById("stat-sessions") as HTMLElement;
+const statProjects = document.getElementById("stat-projects") as HTMLElement;
 const exportBtn = document.getElementById("export-btn") as HTMLButtonElement;
 const previewBtn = document.getElementById("preview-btn") as HTMLButtonElement;
 const csvModal = document.getElementById("csv-modal") as HTMLElement;
-const csvBackdrop = document.getElementById("csv-backdrop") as HTMLElement;
 const csvClose = document.getElementById("csv-close") as HTMLButtonElement;
 const csvTable = document.getElementById("csv-table") as HTMLElement;
 const csvCount = document.getElementById("csv-count") as HTMLElement;
+const csvSummary = document.getElementById("csv-summary") as HTMLElement;
 const csvDownloadModal = document.getElementById("csv-download-modal") as HTMLButtonElement;
-const filterBtns = document.querySelectorAll<HTMLButtonElement>(".filter-btn");
 const currentDateEl = document.getElementById("current-date") as HTMLElement;
 const importInput = document.getElementById("import-input") as HTMLInputElement;
-const notifBtn = document.getElementById("notif-btn") as HTMLButtonElement;
-const notifPanel = document.getElementById("notif-panel") as HTMLElement;
-const notifStatus = document.getElementById("notif-status") as HTMLElement;
 const toastEl = document.getElementById("toast") as HTMLElement;
 const toastMsg = document.getElementById("toast-msg") as HTMLElement;
 const toastAction = document.getElementById("toast-action") as HTMLButtonElement;
+const settingsBtn = document.getElementById("settings-btn") as HTMLButtonElement;
+const settingsPanel = document.getElementById("settings-panel") as HTMLElement;
+const dailyGoalInput = document.getElementById("daily-goal-input") as HTMLInputElement;
+const weeklyGoalInput = document.getElementById("weekly-goal-input") as HTMLInputElement;
+const saveGoalsBtn = document.getElementById("save-goals-btn") as HTMLButtonElement;
+const dailyGoalLabel = document.getElementById("daily-goal-label") as HTMLElement;
+const weeklyGoalLabel = document.getElementById("weekly-goal-label") as HTMLElement;
+const dailyGoalBar = document.getElementById("daily-goal-bar") as HTMLElement;
+const weeklyGoalBar = document.getElementById("weekly-goal-bar") as HTMLElement;
+const trustCopy = document.getElementById("trust-copy") as HTMLElement;
+const trustExtra = document.getElementById("trust-extra") as HTMLElement;
+const storageStatus = document.getElementById("storage-status") as HTMLElement;
+const lastExportStatus = document.getElementById("last-export-status") as HTMLElement;
+const backupNudge = document.getElementById("backup-nudge") as HTMLElement;
+const notifStatus = document.getElementById("notif-status") as HTMLElement;
+const periodBtns = document.querySelectorAll<HTMLButtonElement>(".period-btn");
+const searchInput = document.getElementById("search-input") as HTMLInputElement;
+const projectFilter = document.getElementById("project-filter") as HTMLSelectElement;
+const fromDateInput = document.getElementById("from-date") as HTMLInputElement;
+const toDateInput = document.getElementById("to-date") as HTMLInputElement;
+const clearFiltersBtn = document.getElementById("clear-filters-btn") as HTMLButtonElement;
+const insightWeekBtn = document.getElementById("insight-week-btn") as HTMLButtonElement;
+const insightMonthBtn = document.getElementById("insight-month-btn") as HTMLButtonElement;
+const projectInsightsList = document.getElementById("project-insights-list") as HTMLElement;
+const projectInsightsEmpty = document.getElementById("project-insights-empty") as HTMLElement;
+const reportRange = document.getElementById("report-range") as HTMLElement;
+const reportHours = document.getElementById("report-hours") as HTMLElement;
+const reportSessions = document.getElementById("report-sessions") as HTMLElement;
+const reportProjects = document.getElementById("report-projects") as HTMLElement;
+const reportAverage = document.getElementById("report-average") as HTMLElement;
+const reportTopProject = document.getElementById("report-top-project") as HTMLElement;
+const copyReportBtn = document.getElementById("copy-report-btn") as HTMLButtonElement;
+const entryModal = document.getElementById("entry-modal") as HTMLElement;
+const entryClose = document.getElementById("entry-close") as HTMLButtonElement;
+const entryForm = document.getElementById("entry-form") as HTMLFormElement;
+const entryIdInput = document.getElementById("entry-id") as HTMLInputElement;
+const entryDateInput = document.getElementById("entry-date-input") as HTMLInputElement;
+const entryStartInput = document.getElementById("entry-start-input") as HTMLInputElement;
+const entryEndInput = document.getElementById("entry-end-input") as HTMLInputElement;
+const entryProjectInput = document.getElementById("entry-project-input") as HTMLInputElement;
+const entryNoteInput = document.getElementById("entry-note-input") as HTMLTextAreaElement;
+const entrySplitInput = document.getElementById("entry-split-input") as HTMLInputElement;
+const entryDuplicateBtn = document.getElementById("entry-duplicate-btn") as HTMLButtonElement;
+const entryDeleteBtn = document.getElementById("entry-delete-btn") as HTMLButtonElement;
+const entrySplitBtn = document.getElementById("entry-split-btn") as HTMLButtonElement;
+const mergeActions = document.getElementById("merge-actions") as HTMLElement;
 
 function getRunningElapsedSeconds(): number {
   if (timerState !== "running" || segmentStart === null) return accumulatedSeconds;
   return accumulatedSeconds + Math.floor((Date.now() - segmentStart) / 1000);
+}
+
+function getFilteredEntriesForView(): Entry[] {
+  return getFilteredEntries(entries, filterState).sort((a, b) => b.start - a.start);
+}
+
+function markSaved(message = "Cambios guardados localmente"): void {
+  lastSaveMessage = message;
+  storageStatus.textContent = message;
+}
+
+function persistEntries(message = "Cambios guardados localmente"): void {
+  saveEntries(entries);
+  markSaved(message);
 }
 
 function persistRunningState(): void {
@@ -82,28 +187,6 @@ function persistRunningState(): void {
   });
 }
 
-function showToast(message: string, action?: { label: string; cb: () => void }): void {
-  toastMsg.textContent = message;
-  if (action) {
-    toastAction.textContent = action.label;
-    toastAction.classList.remove("hidden");
-    toastAction.onclick = () => {
-      if (toastTimer) clearTimeout(toastTimer);
-      toastEl.classList.add("hidden");
-      action.cb();
-    };
-  } else {
-    toastAction.classList.add("hidden");
-    toastAction.onclick = null;
-  }
-  toastEl.classList.remove("hidden");
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toastEl.classList.add("hidden");
-    undoEntry = null;
-  }, 4000);
-}
-
 function updateButtonArea(): void {
   startBtn.classList.toggle("hidden", timerState !== "idle");
   pauseBtn.classList.toggle("hidden", timerState !== "running");
@@ -111,12 +194,25 @@ function updateButtonArea(): void {
   stopBtn.classList.toggle("hidden", timerState === "idle");
 }
 
+function updateTimerStateLabel(): void {
+  if (timerState === "running") timerStateLabel.textContent = "Registrando en tiempo real";
+  else if (timerState === "paused") timerStateLabel.textContent = "Sesion en pausa";
+  else timerStateLabel.textContent = "Listo para empezar";
+}
+
 function updateTimerDisplay(seconds = getRunningElapsedSeconds()): void {
   timerEl.textContent = formatClock(seconds);
 }
 
+function setInputLock(locked: boolean): void {
+  noteInput.disabled = locked;
+  projectInput.disabled = locked;
+}
+
 function tickTimer(): void {
   updateTimerDisplay();
+  updateStats();
+  updateGoalsUI();
   evaluateNotification(entries, notifThreshold, getRunningElapsedSeconds(), sessionStart);
 }
 
@@ -135,12 +231,12 @@ function startTimer(): void {
   sessionStart = Date.now();
   segmentStart = sessionStart;
   accumulatedSeconds = 0;
-  noteInput.disabled = true;
-  projectInput.disabled = true;
+  setInputLock(true);
   timerState = "running";
   statusDot.classList.remove("paused");
   statusDot.classList.add("running");
   updateButtonArea();
+  updateTimerStateLabel();
   persistRunningState();
   updateTimerDisplay(0);
   tickTimer();
@@ -156,6 +252,7 @@ function pauseTimer(): void {
   statusDot.classList.remove("running");
   statusDot.classList.add("paused");
   updateButtonArea();
+  updateTimerStateLabel();
   persistRunningState();
   updateTimerDisplay(accumulatedSeconds);
 }
@@ -167,6 +264,7 @@ function resumeTimerFromPause(): void {
   statusDot.classList.remove("paused");
   statusDot.classList.add("running");
   updateButtonArea();
+  updateTimerStateLabel();
   persistRunningState();
   tickTimer();
   startTimerInterval();
@@ -178,12 +276,24 @@ function resetTimerForm(): void {
   sessionStart = null;
   segmentStart = null;
   timerEl.textContent = "00:00:00";
-  noteInput.disabled = false;
+  setInputLock(false);
   noteInput.value = "";
-  projectInput.disabled = false;
   projectInput.value = "";
   statusDot.classList.remove("running", "paused");
   updateButtonArea();
+  updateTimerStateLabel();
+}
+
+function refreshAllViews(): void {
+  updateStats();
+  updateProjectDatalist();
+  updateProjectFilterOptions();
+  updateGoalsUI();
+  updateStorageSignals();
+  renderProjectInsights();
+  renderList();
+  updateReportCard();
+  updateNotifUI();
 }
 
 function stopTimer(): void {
@@ -196,22 +306,21 @@ function stopTimer(): void {
 
   if (totalDuration >= 1) {
     const entry: Entry = {
-      id: sessionStart,
+      id: Date.now(),
       start: sessionStart,
       end: endTs,
       duration: totalDuration,
       notes: noteInput.value.trim(),
-      date: getToday(),
+      date: getDateKeyFromTimestamp(sessionStart),
       project: projectInput.value.trim() || undefined,
     };
     entries.unshift(entry);
-    saveEntries(entries);
+    entries.sort((a, b) => b.start - a.start);
+    persistEntries("Sesion guardada localmente");
   }
 
   resetTimerForm();
-  updateStats();
-  renderList();
-  updateProjectDatalist();
+  refreshAllViews();
   evaluateNotification(entries, notifThreshold);
 }
 
@@ -223,14 +332,14 @@ function restoreTimer(saved: RunningState): void {
   accumulatedSeconds = saved.accumulatedSeconds ?? 0;
   noteInput.value = saved.note ?? "";
   projectInput.value = saved.project ?? "";
-  noteInput.disabled = true;
-  projectInput.disabled = true;
+  setInputLock(true);
 
   if ((saved.timerState ?? "running") === "paused") {
     timerState = "paused";
     updateTimerDisplay(accumulatedSeconds);
     statusDot.classList.add("paused");
     updateButtonArea();
+    updateTimerStateLabel();
     return;
   }
 
@@ -238,234 +347,485 @@ function restoreTimer(saved: RunningState): void {
   timerState = "running";
   statusDot.classList.add("running");
   updateButtonArea();
+  updateTimerStateLabel();
   tickTimer();
   startTimerInterval();
 }
 
-function getProjects(): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
+function showToast(message: string, action?: { label: string; cb: () => void }): void {
+  toastMsg.textContent = message;
 
-  for (const entry of entries) {
-    if (entry.project && !seen.has(entry.project)) {
-      seen.add(entry.project);
-      result.push(entry.project);
-    }
+  if (action) {
+    toastAction.textContent = action.label;
+    toastAction.classList.remove("hidden");
+    toastAction.onclick = () => {
+      if (toastTimer) clearTimeout(toastTimer);
+      toastEl.classList.add("hidden");
+      action.cb();
+    };
+  } else {
+    toastAction.classList.add("hidden");
+    toastAction.onclick = null;
   }
 
-  return result;
+  toastEl.classList.remove("hidden");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.classList.add("hidden");
+    undoEntry = null;
+  }, 4200);
+}
+
+function buildProjectOptions(selectedProject: string): string {
+  const options = getAvailableProjects(entries)
+    .map((project) => {
+      const selected = project === selectedProject ? " selected" : "";
+      return `<option value="${esc(project)}"${selected}>${esc(project)}</option>`;
+    })
+    .join("");
+
+  return `<option value="">Todos</option>${options}`;
 }
 
 function updateProjectDatalist(): void {
-  projectsDatalist.innerHTML = getProjects()
+  projectsDatalist.innerHTML = getAvailableProjects(entries)
+    .filter((project) => project !== "Sin proyecto")
     .map((project) => `<option value="${esc(project)}"></option>`)
     .join("");
 }
 
+function updateProjectFilterOptions(): void {
+  projectFilter.innerHTML = buildProjectOptions(filterState.project);
+}
+
 function updateStats(): void {
+  const runningSeconds = getRunningElapsedSeconds();
   const today = getToday();
-  const startOfWeek = getStartOfCurrentWeek();
-  let weekTotal = 0;
+  const todayTotal =
+    getTodayTotalSeconds(entries, today) +
+    (sessionStart !== null && getDateKeyFromTimestamp(sessionStart) === today ? runningSeconds : 0);
+  const weekStart = getStartOfCurrentWeek();
+  const weekTotal =
+    entries.filter((entry) => entry.start >= weekStart).reduce((sum, entry) => sum + entry.duration, 0) +
+    (sessionStart !== null && sessionStart >= weekStart ? runningSeconds : 0);
+  const activeProjects = new Set(
+    entries.map((entry) => (entry.project?.trim().length ? entry.project.trim() : "Sin proyecto"))
+  ).size;
 
-  for (const entry of entries) {
-    if (entry.start >= startOfWeek) weekTotal += entry.duration;
-  }
-
-  statToday.textContent = formatTotalTime(getTodayTotalSeconds(entries, today));
+  statToday.textContent = formatTotalTime(todayTotal);
   statWeek.textContent = formatTotalTime(weekTotal);
   statSessions.textContent = String(entries.length);
+  statProjects.textContent = String(activeProjects);
+}
+
+function updateGoalsUI(): void {
+  const runningSeconds = getRunningElapsedSeconds();
+  const today = getToday();
+  const todaySeconds =
+    getTodayTotalSeconds(entries, today) +
+    (sessionStart !== null && getDateKeyFromTimestamp(sessionStart) === today ? runningSeconds : 0);
+  const weekSeconds =
+    entries.filter((entry) => entry.start >= getStartOfCurrentWeek()).reduce((sum, entry) => sum + entry.duration, 0) +
+    (sessionStart !== null && sessionStart >= getStartOfCurrentWeek() ? runningSeconds : 0);
+
+  const dailyGoalSeconds = preferences.dailyGoalHours * 3600;
+  const weeklyGoalSeconds = preferences.weeklyGoalHours * 3600;
+  const dailyProgress = dailyGoalSeconds > 0 ? Math.min(100, (todaySeconds / dailyGoalSeconds) * 100) : 0;
+  const weeklyProgress = weeklyGoalSeconds > 0 ? Math.min(100, (weekSeconds / weeklyGoalSeconds) * 100) : 0;
+
+  dailyGoalLabel.textContent = `${formatHoursCompact(todaySeconds)} / ${preferences.dailyGoalHours}h`;
+  weeklyGoalLabel.textContent = `${formatHoursCompact(weekSeconds)} / ${preferences.weeklyGoalHours}h`;
+  dailyGoalBar.style.width = `${dailyProgress}%`;
+  weeklyGoalBar.style.width = `${weeklyProgress}%`;
+}
+
+function updateStorageSignals(): void {
+  const filteredEntries = getFilteredEntriesForView();
+  const daysSinceExport = preferences.lastExportAt
+    ? Math.floor((Date.now() - preferences.lastExportAt) / (1000 * 60 * 60 * 24))
+    : null;
+
+  storageStatus.textContent = lastSaveMessage;
+  trustCopy.textContent = `${entries.length} sesiones guardadas solo en este navegador.`;
+  trustExtra.textContent =
+    filteredEntries.length === entries.length
+      ? "Todo lo que ves se guarda al instante en localStorage."
+      : `El filtro actual deja ${filteredEntries.length} sesiones visibles.`;
+  lastExportStatus.textContent = describeLastExport(preferences.lastExportAt);
+
+  if (entries.length > 0 && (preferences.lastExportAt === null || (daysSinceExport !== null && daysSinceExport >= 7))) {
+    backupNudge.textContent = "Conviene exportar una copia esta semana para no depender solo del navegador.";
+    backupNudge.classList.remove("hidden");
+  } else {
+    backupNudge.classList.add("hidden");
+  }
+}
+
+function renderProjectInsights(): void {
+  insightWeekBtn.classList.toggle("active", insightPeriod === "week");
+  insightMonthBtn.classList.toggle("active", insightPeriod === "month");
+
+  const summaries = getProjectSummaries(entries, insightPeriod, 5).filter(
+    (summary) => summary.totalSeconds > 0
+  );
+
+  projectInsightsEmpty.classList.toggle("hidden", summaries.length > 0);
+  projectInsightsList.innerHTML = summaries
+    .map(
+      (summary) => `
+        <article class="insight-item">
+          <div class="insight-top">
+            <strong class="insight-name">${esc(summary.project)}</strong>
+            <span class="insight-bar-label">${formatHoursCompact(summary.totalSeconds)}</span>
+          </div>
+          <div class="insight-track">
+            <div class="insight-fill" style="width:${Math.max(summary.share * 100, 6)}%"></div>
+          </div>
+          <div class="insight-bottom">
+            <span>${summary.sessions} sesion${summary.sessions === 1 ? "" : "es"}</span>
+            <span>${Math.round(summary.share * 100)}% del total</span>
+          </div>
+        </article>`
+    )
+    .join("");
+}
+
+function updateReportCard(): void {
+  const filteredEntries = getFilteredEntriesForView();
+  const summary = getReportSummary(filteredEntries, getFilterLabel(filterState));
+
+  reportRange.textContent = summary.rangeLabel;
+  reportHours.textContent = formatHoursCompact(summary.totalSeconds);
+  reportSessions.textContent = String(summary.totalSessions);
+  reportProjects.textContent = String(summary.projectCount);
+  reportAverage.textContent = formatHoursCompact(summary.averageSeconds);
+  reportTopProject.textContent = summary.topProject
+    ? `${summary.topProject.project} / ${formatHoursCompact(summary.topProject.totalSeconds)}`
+    : "Sin datos todavia";
+}
+
+function renderList(): void {
+  const filtered = getFilteredEntriesForView();
+
+  if (filtered.length === 0) {
+    const hasAny = entries.length > 0;
+    recordsList.innerHTML = `
+      <li class="record-empty">
+        <p class="record-empty-icon" aria-hidden="true">${hasAny ? "🔍" : "⏱"}</p>
+        <p class="record-empty-title">${hasAny ? "Sin resultados" : "Sin sesiones todavia"}</p>
+        <p class="tiny-copy">${hasAny ? "Prueba con otro rango, proyecto o texto." : "Inicia el temporizador para registrar tu primera sesion."}</p>
+      </li>`;
+    return;
+  }
+
+  recordsList.innerHTML = filtered
+    .map((entry, index) => {
+      const projectName = entry.project?.trim().length ? entry.project.trim() : "Sin proyecto";
+      const noteMarkup = entry.notes
+        ? `<p class="record-note">${esc(entry.notes)}</p>`
+        : `<p class="record-note muted">Sin nota</p>`;
+
+      return `
+        <li class="record-card" data-id="${entry.id}" style="--i:${index}">
+          <div class="record-main">
+            <div class="record-copy">
+              ${noteMarkup}
+              <div class="record-meta">
+                <span class="record-badge">${esc(projectName)}</span>
+                <span>${esc(entry.date)}</span>
+                <span>${esc(formatLocalTime(entry.start))} - ${esc(formatLocalTime(entry.end))}</span>
+              </div>
+            </div>
+            <div class="record-duration">${formatDuration(entry.duration)}</div>
+          </div>
+          <div class="record-actions">
+            <button class="record-action" type="button" data-action="edit" data-id="${entry.id}">Gestionar</button>
+            <button class="record-action" type="button" data-action="duplicate" data-id="${entry.id}">Duplicar</button>
+            <button class="record-action" type="button" data-action="delete" data-id="${entry.id}">Eliminar</button>
+          </div>
+        </li>`;
+    })
+    .join("");
+}
+
+function updateNotifUI(): void {
+  document.querySelectorAll<HTMLButtonElement>(".notif-opt").forEach((button) => {
+    const buttonHours = button.dataset.hours === "" ? null : Number(button.dataset.hours);
+    button.classList.toggle("active", buttonHours === notifThreshold);
+  });
+
+  if (!("Notification" in window)) {
+    notifStatus.textContent = "No disponible en este navegador";
+  } else if (Notification.permission === "denied") {
+    notifStatus.textContent = "Las notificaciones estan bloqueadas en el navegador";
+  } else if (notifThreshold) {
+    notifStatus.textContent = `Aviso activo al alcanzar ${notifThreshold}h en el dia`;
+  } else {
+    notifStatus.textContent = "Avisos desactivados";
+  }
+}
+
+function getEntryById(id: number): Entry | undefined {
+  return entries.find((entry) => entry.id === id);
 }
 
 function deleteEntry(id: number): void {
-  const index = entries.findIndex((e) => e.id === id);
+  const index = entries.findIndex((entry) => entry.id === id);
   if (index === -1) return;
+
   const [removed] = entries.splice(index, 1);
   undoEntry = { entry: removed, index };
-  saveEntries(entries);
-  updateStats();
-  renderList();
+  persistEntries("Registro eliminado");
+  closeEntryEditor();
+  refreshAllViews();
+
   showToast("Registro eliminado", {
     label: "Deshacer",
     cb: () => {
       if (!undoEntry) return;
       entries.splice(undoEntry.index, 0, undoEntry.entry);
       entries.sort((a, b) => b.start - a.start);
+      persistEntries("Eliminacion deshecha");
       undoEntry = null;
-      saveEntries(entries);
-      updateStats();
-      renderList();
+      refreshAllViews();
     },
   });
 }
 
-function startNoteEdit(id: number, noteEl: HTMLElement): void {
-  const entry = entries.find((item) => item.id === id);
-  if (!entry) return;
+function duplicateEntry(id: number): void {
+  const original = getEntryById(id);
+  if (!original) return;
 
-  const input = document.createElement("input");
-  input.type = "text";
-  input.value = entry.notes;
-  input.maxLength = 200;
-  input.className =
-    "bg-transparent text-txt text-[0.88rem] font-medium w-full focus:outline-none border-b border-accent/60 pb-px min-w-0";
-
-  noteEl.replaceWith(input);
-  input.focus();
-  input.select();
-
-  let committed = false;
-
-  function commit(): void {
-    if (committed) return;
-    committed = true;
-    if (!entry) return;
-    entry.notes = input.value.trim();
-    saveEntries(entries);
-    renderList();
-  }
-
-  input.addEventListener("blur", commit);
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      commit();
-    }
-    if (event.key === "Escape") {
-      committed = true;
-      renderList();
-    }
-  });
-}
-
-function startTimeEdit(id: number, timeRow: HTMLElement): void {
-  const entry = entries.find((e) => e.id === id);
-  if (!entry) return;
-
-  const toHHMM = (ts: number) => {
-    const d = new Date(ts);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const clone: Entry = {
+    ...original,
+    id: Date.now(),
   };
 
-  const form = document.createElement("div");
-  form.className = "flex items-center gap-1.5 font-mono text-[0.7rem] mt-1 flex-wrap";
-  form.innerHTML = `
-    <input type="time" value="${toHHMM(entry.start)}" id="te-start-${id}"
-      class="bg-hi border border-line rounded px-1.5 py-px text-txt focus:outline-none focus:border-accent tabular-nums">
-    <span class="opacity-40">&#8594;</span>
-    <input type="time" value="${toHHMM(entry.end)}" id="te-end-${id}"
-      class="bg-hi border border-line rounded px-1.5 py-px text-txt focus:outline-none focus:border-accent tabular-nums">
-    <button class="te-save px-2 py-px rounded bg-accent/15 text-accent border border-accent/30 text-[0.65rem] font-semibold hover:bg-accent/25 transition-colors">OK</button>
-    <button class="te-cancel px-2 py-px rounded bg-hi text-dim border border-line text-[0.65rem] hover:text-txt transition-colors">Cancelar</button>
-  `;
-
-  timeRow.replaceWith(form);
-  (form.querySelector(`#te-start-${id}`) as HTMLInputElement).focus();
-
-  function commitTimeEdit(): void {
-    const startInput = form.querySelector(`#te-start-${id}`) as HTMLInputElement;
-    const endInput = form.querySelector(`#te-end-${id}`) as HTMLInputElement;
-    if (!startInput.value || !endInput.value) { renderList(); return; }
-
-    const origDate = new Date(entry!.start);
-    const [sh, sm] = startInput.value.split(":").map(Number);
-    const [eh, em] = endInput.value.split(":").map(Number);
-
-    const newStart = new Date(origDate);
-    newStart.setHours(sh, sm, 0, 0);
-    const newEnd = new Date(origDate);
-    newEnd.setHours(eh, em, 0, 0);
-    if (newEnd <= newStart) newEnd.setDate(newEnd.getDate() + 1);
-
-    const newDuration = Math.floor((newEnd.getTime() - newStart.getTime()) / 1000);
-    if (newDuration < 1) { renderList(); return; }
-
-    entry!.start = newStart.getTime();
-    entry!.end = newEnd.getTime();
-    entry!.duration = newDuration;
-    entries.sort((a, b) => b.start - a.start);
-    saveEntries(entries);
-    updateStats();
-    renderList();
-  }
-
-  form.querySelector(".te-save")?.addEventListener("click", commitTimeEdit);
-  form.querySelector(".te-cancel")?.addEventListener("click", () => renderList());
-  form.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); commitTimeEdit(); }
-    if (e.key === "Escape") renderList();
-  });
+  entries.unshift(clone);
+  entries.sort((a, b) => b.start - a.start);
+  persistEntries("Sesion duplicada");
+  closeEntryEditor();
+  refreshAllViews();
+  showToast("Sesion duplicada");
 }
 
-function getFilteredEntries(): Entry[] {
-  const today = getToday();
-  if (activeFilter === "today") return entries.filter((entry) => entry.date === today);
-  if (activeFilter === "week") return entries.filter((entry) => isEntryInCurrentWeek(entry));
-  return entries;
+function getSplitDefaultValue(entry: Entry): string {
+  const midPoint = entry.start + Math.floor((entry.end - entry.start) / 2);
+  return toTimeInput(midPoint);
 }
 
-function renderList(): void {
-  const filtered = getFilteredEntries();
+function renderMergeActionButtons(id: number): void {
+  const candidates = findMergeCandidates(id, entries);
 
-  if (filtered.length === 0) {
-    recordsList.innerHTML = `
-      <li class="flex flex-col items-center justify-center py-14 text-dim text-sm border border-dashed border-line rounded-2xl gap-2">
-        <span class="text-3xl opacity-20">⌱</span>
-        <span>Sin registros${activeFilter !== "all" ? " en este periodo" : ""}</span>
-      </li>`;
+  if (candidates.length === 0) {
+    mergeActions.innerHTML = `<span class="tiny-copy">No hay sesiones cercanas de este dia para fusionar.</span>`;
     return;
   }
 
-  recordsList.innerHTML = filtered
-    .map((entry) => {
-      const hasNote = entry.notes.length > 0;
-      const noteText = hasNote ? esc(entry.notes) : "- sin nota -";
-      const noteClass = hasNote
-        ? "text-[0.88rem] font-medium text-txt leading-snug truncate cursor-text hover:text-accent/80 transition-colors duration-100"
-        : "text-[0.88rem] italic text-dim/60 leading-snug truncate cursor-text";
-
-      const projectBadge = entry.project
-        ? `<span class="text-[0.62rem] font-medium px-1.5 py-0.5 rounded bg-accent/10 text-accent/80 border border-accent/15 truncate max-w-[90px] shrink-0">${esc(entry.project)}</span>`
-        : "";
-
-      return `
-      <li
-        class="group relative flex items-stretch rounded-xl bg-surface border border-line overflow-hidden transition-colors duration-150 hover:border-line-hi focus:outline-none focus:border-accent/50"
-        data-id="${entry.id}"
-        tabindex="0"
-        aria-label="Registro ${formatLocalTime(entry.start)} – ${formatLocalTime(entry.end)}, ${formatDuration(entry.duration)}${entry.notes ? ", " + entry.notes : ""}"
-      >
-        <div class="w-[3px] shrink-0 bg-line group-hover:bg-accent/50 group-focus:bg-accent/50 transition-colors duration-200"></div>
-        <div class="flex flex-1 items-center gap-3 pl-4 pr-3 py-3.5 min-w-0">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-1.5 min-w-0">
-              <p class="${noteClass}" data-editable-note title="Clic o Enter para editar">${noteText}</p>
-              <span class="opacity-0 group-hover:opacity-50 group-focus-within:opacity-50 text-dim text-[0.62rem] shrink-0 transition-opacity duration-100 pointer-events-none select-none">✎</span>
-              ${projectBadge}
-            </div>
-            <div class="flex items-center gap-1 mt-1 font-mono text-[0.7rem] text-dim/70" data-time-row data-id="${entry.id}">
-              <span>${formatLocalTime(entry.start)}</span>
-              <span class="opacity-40 mx-0.5">-&gt;</span>
-              <span>${formatLocalTime(entry.end)}</span>
-              <span class="opacity-25 mx-1.5">.</span>
-              <span>${entry.date}</span>
-              <button class="edit-time-btn opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 ml-1.5 text-dim hover:text-accent transition-all duration-150 text-[0.65rem]" data-id="${entry.id}" title="Editar horario" aria-label="Editar horario">✎</button>
-            </div>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <span class="font-mono text-[0.78rem] font-bold text-accent bg-accent/[0.07] border border-accent/20 px-2.5 py-1 rounded-lg tabular-nums">
-              ${formatDuration(entry.duration)}
-            </span>
-            <button class="delete-btn opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-danger hover:bg-danger/[0.08] border border-transparent hover:border-danger/25 transition-all duration-150 text-[0.65rem]" data-id="${entry.id}" title="Eliminar" aria-label="Eliminar registro">✕</button>
-          </div>
-        </div>
-      </li>`;
-    })
+  mergeActions.innerHTML = candidates
+    .map(
+      (candidate) => `
+        <button class="chip-btn merge-btn" type="button" data-merge-id="${candidate.id}">
+          ${candidate.position === "before" ? "Con anterior" : "Con siguiente"} / ${esc(candidate.label)}
+        </button>`
+    )
     .join("");
 }
 
+function openEntryEditor(id: number): void {
+  const entry = getEntryById(id);
+  if (!entry) return;
+
+  entryIdInput.value = String(id);
+  entryDateInput.value = formatDateInput(entry.start);
+  entryStartInput.value = toTimeInput(entry.start);
+  entryEndInput.value = toTimeInput(entry.end);
+  entryProjectInput.value = entry.project ?? "";
+  entryNoteInput.value = entry.notes;
+  entrySplitInput.value = getSplitDefaultValue(entry);
+  renderMergeActionButtons(id);
+  entryModal.classList.remove("hidden");
+}
+
+function closeEntryEditor(): void {
+  entryModal.classList.add("hidden");
+}
+
+function buildEditedTimestamps(dateKey: string, startTime: string, endTime: string): {
+  start: number;
+  end: number;
+  duration: number;
+  date: string;
+} | null {
+  const start = buildLocalTimestamp(dateKey, `${startTime}:00`);
+  const rawEnd = buildLocalTimestamp(dateKey, `${endTime}:00`);
+  if (start === null || rawEnd === null) return null;
+
+  const end = adjustEndTimestamp(start, rawEnd);
+  const duration = Math.floor((end - start) / 1000);
+  if (duration < 1) return null;
+
+  return {
+    start,
+    end,
+    duration,
+    date: getDateKeyFromTimestamp(start),
+  };
+}
+
+function saveEntryFromModal(): void {
+  const id = Number(entryIdInput.value);
+  const entry = getEntryById(id);
+  if (!entry) return;
+
+  const timestamps = buildEditedTimestamps(entryDateInput.value, entryStartInput.value, entryEndInput.value);
+  if (!timestamps) {
+    showToast("Revisa fecha y horas antes de guardar");
+    return;
+  }
+
+  entry.start = timestamps.start;
+  entry.end = timestamps.end;
+  entry.duration = timestamps.duration;
+  entry.date = timestamps.date;
+  entry.project = entryProjectInput.value.trim() || undefined;
+  entry.notes = entryNoteInput.value.trim();
+
+  entries.sort((a, b) => b.start - a.start);
+  persistEntries("Registro actualizado");
+  closeEntryEditor();
+  refreshAllViews();
+  showToast("Registro actualizado");
+}
+
+function splitEntry(): void {
+  const id = Number(entryIdInput.value);
+  const entry = getEntryById(id);
+  if (!entry) return;
+
+  const splitTime = entrySplitInput.value;
+  if (!splitTime) {
+    showToast("Elige una hora para partir la sesion");
+    return;
+  }
+
+  let splitTs = buildLocalTimestamp(entryDateInput.value, `${splitTime}:00`);
+  if (splitTs === null) {
+    showToast("Hora de corte no valida");
+    return;
+  }
+
+  if (splitTs <= entry.start) splitTs += 24 * 60 * 60 * 1000;
+  if (splitTs <= entry.start || splitTs >= entry.end) {
+    showToast("La hora de corte debe caer dentro de la sesion");
+    return;
+  }
+
+  const secondEntry: Entry = {
+    ...entry,
+    id: Date.now(),
+    start: splitTs,
+    end: entry.end,
+    duration: Math.floor((entry.end - splitTs) / 1000),
+    date: getDateKeyFromTimestamp(splitTs),
+  };
+
+  entry.end = splitTs;
+  entry.duration = Math.floor((splitTs - entry.start) / 1000);
+  entries.push(secondEntry);
+  entries.sort((a, b) => b.start - a.start);
+  persistEntries("Sesion partida");
+  closeEntryEditor();
+  refreshAllViews();
+  showToast("Sesion partida en dos registros");
+}
+
+function mergeNotes(first: string, second: string): string {
+  const parts = [first.trim(), second.trim()].filter(Boolean);
+  return Array.from(new Set(parts)).join(" / ");
+}
+
+function mergeProjects(first?: string, second?: string): string | undefined {
+  const parts = [first?.trim(), second?.trim()].filter((value): value is string => Boolean(value));
+  const unique = Array.from(new Set(parts));
+  return unique.length > 0 ? unique.join(" + ") : undefined;
+}
+
+function mergeWithEntry(mergeId: number): void {
+  const id = Number(entryIdInput.value);
+  const current = getEntryById(id);
+  const other = getEntryById(mergeId);
+  if (!current || !other) return;
+
+  const mergedStart = Math.min(current.start, other.start);
+  const mergedEnd = Math.max(current.end, other.end);
+  const merged: Entry = {
+    id: Date.now(),
+    start: mergedStart,
+    end: mergedEnd,
+    duration: Math.floor((mergedEnd - mergedStart) / 1000),
+    date: getDateKeyFromTimestamp(mergedStart),
+    notes: mergeNotes(current.notes, other.notes),
+    project: mergeProjects(current.project, other.project),
+  };
+
+  entries = entries.filter((entry) => entry.id !== current.id && entry.id !== other.id);
+  entries.unshift(merged);
+  entries.sort((a, b) => b.start - a.start);
+  persistEntries("Sesiones fusionadas");
+  closeEntryEditor();
+  refreshAllViews();
+  showToast("Sesiones fusionadas");
+}
+
+function openCsvPreview(): void {
+  previewEntries = getFilteredEntriesForView();
+  if (previewEntries.length === 0) {
+    showToast("No hay datos para exportar con el filtro actual");
+    return;
+  }
+
+  const summary = getReportSummary(previewEntries, getFilterLabel(filterState));
+  const headers = ["Fecha", "Inicio", "Fin", "Duracion", "Proyecto", "Nota"];
+  const thead = `<thead><tr>${headers.map((header) => `<th>${header}</th>`).join("")}</tr></thead>`;
+  const tbody =
+    "<tbody>" +
+    previewEntries
+      .map(
+        (entry) => `
+          <tr>
+            <td>${esc(entry.date)}</td>
+            <td>${esc(formatLocalTimeSec(entry.start))}</td>
+            <td>${esc(formatLocalTimeSec(entry.end))}</td>
+            <td>${esc(formatDuration(entry.duration))}</td>
+            <td>${esc(entry.project ?? "Sin proyecto")}</td>
+            <td>${esc(entry.notes || "-")}</td>
+          </tr>`
+      )
+      .join("") +
+    "</tbody>";
+
+  csvTable.innerHTML = thead + tbody;
+  csvCount.textContent = `${previewEntries.length} registro${previewEntries.length === 1 ? "" : "s"}`;
+  csvSummary.textContent = buildClipboardReport(summary).replace(/\n/g, " / ");
+  csvModal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+}
+
+function closeCsvPreview(): void {
+  csvModal.classList.add("hidden");
+  document.body.style.overflow = "";
+  previewEntries = [];
+}
+
 function downloadCsv(): void {
-  if (entries.length === 0) return;
-  const csv = buildCsv(entries);
+  const exportEntries = previewEntries.length > 0 ? previewEntries : getFilteredEntriesForView();
+  if (exportEntries.length === 0) {
+    showToast("No hay datos para exportar");
+    return;
+  }
+
+  const csv = buildCsv(exportEntries);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -475,6 +835,25 @@ function downloadCsv(): void {
   anchor.click();
   document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
+
+  preferences = { ...preferences, lastExportAt: Date.now() };
+  savePreferences(preferences);
+  markSaved("Copia exportada");
+  updateStorageSignals();
+  showToast("CSV exportado");
+}
+
+async function copyReportToClipboard(): Promise<void> {
+  const summary = getReportSummary(getFilteredEntriesForView(), getFilterLabel(filterState));
+  const payload = buildClipboardReport(summary);
+
+  if (!navigator.clipboard) {
+    showToast("El navegador no permite copiar al portapapeles");
+    return;
+  }
+
+  await navigator.clipboard.writeText(payload);
+  showToast("Resumen copiado");
 }
 
 async function importCsvFile(): Promise<void> {
@@ -483,22 +862,20 @@ async function importCsvFile(): Promise<void> {
 
   try {
     const text = await file.text();
-    const { importedEntries } = parseCsvEntries(text, entries);
+    const { importedEntries, skipped } = parseCsvEntries(text, entries);
 
     if (importedEntries.length > 0) {
       entries = [...entries, ...importedEntries].sort((a, b) => b.start - a.start);
-      saveEntries(entries);
-      updateStats();
-      renderList();
-      updateProjectDatalist();
+      persistEntries("Historial importado");
+      refreshAllViews();
     }
 
     importInput.value = "";
-    showToast(
+    const importedLabel =
       importedEntries.length > 0
         ? `${importedEntries.length} registro${importedEntries.length === 1 ? "" : "s"} importado${importedEntries.length === 1 ? "" : "s"}`
-        : "No hay registros nuevos"
-    );
+        : "No hay registros nuevos";
+    showToast(skipped > 0 ? `${importedLabel}. ${skipped} omitido${skipped === 1 ? "" : "s"}.` : importedLabel);
   } catch (error) {
     const reason = error instanceof Error ? error.message : "unknown";
     if (reason === "empty") showToast("El archivo no tiene datos");
@@ -507,139 +884,95 @@ async function importCsvFile(): Promise<void> {
   }
 }
 
-function openCsvPreview(): void {
-  if (entries.length === 0) return;
-
-  const columns = ["Fecha", "Inicio", "Fin", "Duracion", "Proyecto", "Nota"];
-  const thClass =
-    "px-3 py-2 text-left text-dim font-medium border-b border-line bg-hi sticky top-0";
-  const tdClass = "px-3 py-2 border-b border-line/60 text-txt/90 max-w-[140px] truncate";
-  const tdAccent = "px-3 py-2 border-b border-line/60 text-accent font-bold tabular-nums";
-
-  const thead = `<thead><tr>${columns
-    .map((column) => `<th class="${thClass}">${column}</th>`)
-    .join("")}</tr></thead>`;
-  const tbody =
-    "<tbody>" +
-    entries
-      .map(
-        (entry) =>
-          `<tr class="hover:bg-hi/40 transition-colors duration-100">
-            <td class="${tdClass}">${esc(entry.date)}</td>
-            <td class="${tdClass} tabular-nums">${esc(formatLocalTimeSec(entry.start))}</td>
-            <td class="${tdClass} tabular-nums">${esc(formatLocalTimeSec(entry.end))}</td>
-            <td class="${tdAccent}">${esc(formatDuration(entry.duration))}</td>
-            <td class="${tdClass} ${entry.project ? "" : "italic text-dim/50"}">${entry.project ? esc(entry.project) : "-"}</td>
-            <td class="${tdClass} ${entry.notes ? "" : "italic text-dim/50"}">${entry.notes ? esc(entry.notes) : "-"}</td>
-          </tr>`
-      )
-      .join("") +
-    "</tbody>";
-
-  csvTable.innerHTML = thead + tbody;
-  csvCount.textContent = `${entries.length} ${entries.length === 1 ? "registro" : "registros"}`;
-  csvModal.classList.remove("hidden");
-  document.body.style.overflow = "hidden";
-}
-
-function closeCsvPreview(): void {
-  csvModal.classList.add("hidden");
-  document.body.style.overflow = "";
-}
-
-function updateNotifUI(): void {
-  document.querySelectorAll<HTMLButtonElement>(".notif-opt").forEach((button) => {
-    const buttonHours = button.dataset.hours === "" ? null : Number(button.dataset.hours);
-    const isActive = buttonHours === notifThreshold;
-    button.classList.toggle("border-accent", isActive);
-    button.classList.toggle("text-accent", isActive);
-    button.classList.toggle("border-line", !isActive);
-    button.classList.toggle("text-dim", !isActive);
+function syncFilterInputs(): void {
+  periodBtns.forEach((button) => {
+    button.classList.toggle("active", button.dataset.period === filterState.period);
   });
-
-  if (!("Notification" in window)) {
-    notifStatus.textContent = "No disponible en este navegador";
-  } else if (Notification.permission === "denied") {
-    notifStatus.textContent = "Notificaciones bloqueadas en el navegador";
-  } else if (notifThreshold) {
-    notifStatus.textContent = `Aviso al alcanzar ${notifThreshold}h hoy`;
-  } else {
-    notifStatus.textContent = "Desactivadas";
-  }
+  searchInput.value = filterState.search;
+  projectFilter.value = filterState.project;
+  fromDateInput.value = filterState.from;
+  toDateInput.value = filterState.to;
 }
 
-currentDateEl.textContent = getCurrentDateLabel();
+function applyFilterUpdate(partial: Partial<FilterState>): void {
+  Object.assign(filterState, partial);
+  syncFilterInputs();
+  renderList();
+  updateReportCard();
+  updateStorageSignals();
+}
+
+function clearFilters(): void {
+  filterState.period = "all";
+  filterState.search = "";
+  filterState.project = "";
+  filterState.from = "";
+  filterState.to = "";
+  syncFilterInputs();
+  renderList();
+  updateReportCard();
+  updateStorageSignals();
+}
+
+function toggleSettingsPanel(): void {
+  const hidden = settingsPanel.classList.contains("hidden");
+  settingsPanel.classList.toggle("hidden");
+  settingsBtn.setAttribute("aria-expanded", String(hidden));
+}
+
+currentDateEl.textContent = formatCurrentDateLabel();
+dailyGoalInput.value = String(preferences.dailyGoalHours);
+weeklyGoalInput.value = String(preferences.weeklyGoalHours);
+updateButtonArea();
+updateTimerStateLabel();
+updateTimerDisplay(0);
+syncFilterInputs();
+refreshAllViews();
+
+const savedRunning = loadRunningState();
+if (savedRunning) restoreTimer(savedRunning);
+
+evaluateNotification(entries, notifThreshold, getRunningElapsedSeconds(), sessionStart);
+
 startBtn.addEventListener("click", startTimer);
 pauseBtn.addEventListener("click", pauseTimer);
 resumeBtn.addEventListener("click", resumeTimerFromPause);
 stopBtn.addEventListener("click", stopTimer);
-exportBtn.addEventListener("click", downloadCsv);
+exportBtn.addEventListener("click", () => {
+  previewEntries = [];
+  downloadCsv();
+});
 previewBtn.addEventListener("click", openCsvPreview);
 csvClose.addEventListener("click", closeCsvPreview);
-csvBackdrop.addEventListener("click", closeCsvPreview);
 csvDownloadModal.addEventListener("click", downloadCsv);
+copyReportBtn.addEventListener("click", () => {
+  void copyReportToClipboard().catch(() => {
+    showToast("No se pudo copiar el resumen");
+  });
+});
 importInput.addEventListener("change", () => {
   void importCsvFile();
 });
 
-recordsList.addEventListener("click", (event) => {
-  const target = event.target as Element;
-
-  const deleteBtn = target.closest<HTMLButtonElement>(".delete-btn");
-  if (deleteBtn) {
-    deleteEntry(Number(deleteBtn.dataset.id));
+settingsBtn.addEventListener("click", toggleSettingsPanel);
+saveGoalsBtn.addEventListener("click", () => {
+  const daily = Number(dailyGoalInput.value);
+  const weekly = Number(weeklyGoalInput.value);
+  if (!Number.isFinite(daily) || daily <= 0 || !Number.isFinite(weekly) || weekly <= 0) {
+    showToast("Las metas deben ser numeros mayores que cero");
     return;
   }
 
-  const timeEditBtn = target.closest<HTMLButtonElement>(".edit-time-btn");
-  if (timeEditBtn) {
-    const item = timeEditBtn.closest<HTMLElement>("li[data-id]");
-    if (item) {
-      const timeRow = item.querySelector<HTMLElement>("[data-time-row]");
-      if (timeRow) startTimeEdit(Number(timeEditBtn.dataset.id), timeRow);
-    }
-    return;
-  }
-
-  const noteEl = target.closest<HTMLElement>("[data-editable-note]");
-  if (!noteEl) return;
-  const item = noteEl.closest<HTMLElement>("li[data-id]");
-  if (item) startNoteEdit(Number(item.dataset.id), noteEl);
-});
-
-recordsList.addEventListener("keydown", (event) => {
-  const li = (event.target as Element).closest<HTMLElement>("li[data-id]");
-  if (!li) return;
-  const id = Number(li.dataset.id);
-
-  if (event.key === "Delete" || event.key === "Backspace") {
-    // Only delete if not currently editing a field inside the li
-    if (document.activeElement === li) {
-      event.preventDefault();
-      deleteEntry(id);
-    }
-    return;
-  }
-
-  if (event.key === "Enter" && document.activeElement === li) {
-    event.preventDefault();
-    const noteEl = li.querySelector<HTMLElement>("[data-editable-note]");
-    if (noteEl) startNoteEdit(id, noteEl);
-  }
-});
-
-filterBtns.forEach((button) => {
-  button.addEventListener("click", () => {
-    filterBtns.forEach((item) => item.classList.remove("active"));
-    button.classList.add("active");
-    activeFilter = button.dataset.filter as typeof activeFilter;
-    renderList();
-  });
-});
-
-notifBtn.addEventListener("click", () => {
-  notifPanel.classList.toggle("hidden");
-  if (!notifPanel.classList.contains("hidden")) updateNotifUI();
+  preferences = {
+    ...preferences,
+    dailyGoalHours: Math.round(daily * 10) / 10,
+    weeklyGoalHours: Math.round(weekly),
+  };
+  savePreferences(preferences);
+  markSaved("Metas actualizadas");
+  updateGoalsUI();
+  updateStorageSignals();
+  showToast("Metas actualizadas");
 });
 
 document.querySelectorAll<HTMLButtonElement>(".notif-opt").forEach((button) => {
@@ -657,11 +990,90 @@ document.querySelectorAll<HTMLButtonElement>(".notif-opt").forEach((button) => {
     saveNotifThreshold(notifThreshold);
     updateNotifUI();
     evaluateNotification(entries, notifThreshold, getRunningElapsedSeconds(), sessionStart);
+    showToast(hours ? `Aviso configurado a ${hours}h` : "Avisos desactivados");
   });
+});
+
+insightWeekBtn.addEventListener("click", () => {
+  insightPeriod = "week";
+  renderProjectInsights();
+});
+
+insightMonthBtn.addEventListener("click", () => {
+  insightPeriod = "month";
+  renderProjectInsights();
+});
+
+periodBtns.forEach((button) => {
+  button.addEventListener("click", () => {
+    applyFilterUpdate({ period: button.dataset.period as FilterState["period"] });
+  });
+});
+
+searchInput.addEventListener("input", () => {
+  applyFilterUpdate({ search: searchInput.value });
+});
+
+projectFilter.addEventListener("change", () => {
+  applyFilterUpdate({ project: projectFilter.value });
+});
+
+fromDateInput.addEventListener("change", () => {
+  applyFilterUpdate({ from: fromDateInput.value, period: "custom" });
+});
+
+toDateInput.addEventListener("change", () => {
+  applyFilterUpdate({ to: toDateInput.value, period: "custom" });
+});
+
+clearFiltersBtn.addEventListener("click", clearFilters);
+
+recordsList.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+  const button = target.closest<HTMLButtonElement>("[data-action]");
+  if (!button) return;
+
+  const id = Number(button.dataset.id);
+  const action = button.dataset.action;
+
+  if (action === "edit") openEntryEditor(id);
+  if (action === "duplicate") duplicateEntry(id);
+  if (action === "delete") deleteEntry(id);
+});
+
+entryClose.addEventListener("click", closeEntryEditor);
+entryForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveEntryFromModal();
+});
+entryDuplicateBtn.addEventListener("click", () => {
+  duplicateEntry(Number(entryIdInput.value));
+});
+entryDeleteBtn.addEventListener("click", () => {
+  deleteEntry(Number(entryIdInput.value));
+});
+entrySplitBtn.addEventListener("click", splitEntry);
+mergeActions.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+  const button = target.closest<HTMLButtonElement>("[data-merge-id]");
+  if (!button) return;
+  mergeWithEntry(Number(button.dataset.mergeId));
+});
+
+document.querySelectorAll<HTMLElement>("[data-close-entry]").forEach((element) => {
+  element.addEventListener("click", closeEntryEditor);
+});
+document.querySelectorAll<HTMLElement>("[data-close-preview]").forEach((element) => {
+  element.addEventListener("click", closeCsvPreview);
 });
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    if (!entryModal.classList.contains("hidden")) {
+      closeEntryEditor();
+      return;
+    }
+
     if (!csvModal.classList.contains("hidden")) {
       closeCsvPreview();
       return;
@@ -682,12 +1094,10 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-updateStats();
-renderList();
-updateProjectDatalist();
-updateNotifUI();
-
-const savedRunning = loadRunningState();
-if (savedRunning) restoreTimer(savedRunning);
-
-evaluateNotification(entries, notifThreshold, getRunningElapsedSeconds(), sessionStart);
+// Topbar scroll border
+const topbar = document.querySelector(".topbar") as HTMLElement | null;
+if (topbar) {
+  window.addEventListener("scroll", () => {
+    topbar.classList.toggle("scrolled", window.scrollY > 8);
+  }, { passive: true });
+}

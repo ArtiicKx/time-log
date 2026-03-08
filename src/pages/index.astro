@@ -3,236 +3,374 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="TimeLog">
-  <div class="max-w-[680px] mx-auto px-4 pb-20">
-
-    <!-- ── Header ──────────────────────────────────────────────── -->
-    <header class="py-5 border-b border-line mb-8">
-      <div class="flex items-center justify-between gap-4">
-        <h1 class="text-xl font-bold tracking-tight">
-          Time<span class="text-accent">Log</span>
-        </h1>
-        <div class="flex items-center gap-2">
-          <span id="current-date" class="text-xs text-dim capitalize"></span>
-          <button
-            id="notif-btn"
-            class="w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-txt hover:bg-hi border border-transparent hover:border-line transition-all duration-150 text-sm"
-            title="Configurar notificaciones"
-          >🔔</button>
-        </div>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Registro local y offline</p>
+        <h1 class="brand">Time<span>Log</span></h1>
       </div>
-
-      <!-- Notification panel -->
-      <div
-        id="notif-panel"
-        class="hidden mt-3 p-3 bg-hi border border-line rounded-xl flex flex-col gap-2.5"
-      >
-        <span class="text-[0.65rem] text-dim uppercase tracking-widest">Notificación al acumular hoy</span>
-        <div class="flex gap-1.5 flex-wrap">
-          <button class="notif-opt px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" data-hours="">Off</button>
-          <button class="notif-opt px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" data-hours="2">2h</button>
-          <button class="notif-opt px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" data-hours="4">4h</button>
-          <button class="notif-opt px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" data-hours="6">6h</button>
-          <button class="notif-opt px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" data-hours="8">8h</button>
-        </div>
-        <span id="notif-status" class="text-[0.68rem] text-dim/70"></span>
+      <div class="topbar-meta">
+        <span id="current-date" class="date-chip"></span>
+        <button id="settings-btn" class="ghost-btn compact-btn" type="button" aria-expanded="false" aria-controls="settings-panel">
+          Ajustes
+        </button>
       </div>
     </header>
 
-    <main class="flex flex-col gap-4">
-
-      <!-- ── Timer card ───────────────────────────────────────── -->
-      <section
-        class="bg-surface border border-line rounded-2xl px-6 pt-8 pb-6 flex flex-col items-center gap-4"
-      >
-        <div class="flex items-center gap-3">
-          <span
-            id="status-dot"
-            class="w-2.5 h-2.5 rounded-full bg-line shrink-0 transition-colors duration-300"
-          ></span>
-          <span
-            id="timer"
-            class="font-mono text-[clamp(2.6rem,9vw,3.75rem)] font-semibold tracking-[3px] leading-none tabular-nums"
-            >00:00:00</span
-          >
-        </div>
-
-        <input
-          id="project-input"
-          type="text"
-          list="projects-datalist"
-          placeholder="Proyecto (opcional)"
-          maxlength="50"
-          autocomplete="off"
-          class="w-full bg-hi border border-line rounded-xl text-txt px-4 py-2.5 text-sm transition-colors focus:border-accent focus:outline-none placeholder:text-dim disabled:opacity-35 disabled:cursor-not-allowed"
-        />
-        <datalist id="projects-datalist"></datalist>
-
-        <input
-          id="note-input"
-          type="text"
-          placeholder="¿En qué estás trabajando? (opcional)"
-          maxlength="200"
-          autocomplete="off"
-          class="w-full bg-hi border border-line rounded-xl text-txt px-4 py-2.5 text-sm transition-colors focus:border-accent focus:outline-none placeholder:text-dim disabled:opacity-35 disabled:cursor-not-allowed"
-        />
-
-        <!-- Button area — contents managed by JS -->
-        <div id="btn-area" class="w-full flex gap-2">
-          <button
-            id="start-btn"
-            class="flex-1 py-3 px-6 rounded-xl text-[0.95rem] font-semibold bg-accent text-black flex items-center justify-center gap-2 transition-all duration-150 hover:bg-accent-dark active:scale-[0.985]"
-          >
-            <span>▶</span> Iniciar
-          </button>
-          <button
-            id="pause-btn"
-            class="hidden flex-1 py-3 px-6 rounded-xl text-[0.95rem] font-semibold bg-hi text-txt border border-line flex items-center justify-center gap-2 transition-all duration-150 hover:border-line-hi active:scale-[0.985]"
-          >
-            <span>⏸</span> Pausar
-          </button>
-          <button
-            id="resume-btn"
-            class="hidden flex-1 py-3 px-6 rounded-xl text-[0.95rem] font-semibold bg-accent text-black flex items-center justify-center gap-2 transition-all duration-150 hover:bg-accent-dark active:scale-[0.985]"
-          >
-            <span>▶</span> Reanudar
-          </button>
-          <button
-            id="stop-btn"
-            class="hidden flex-1 py-3 px-6 rounded-xl text-[0.95rem] font-semibold bg-hi text-dim border border-line flex items-center justify-center gap-2 transition-all duration-150 hover:text-danger hover:border-danger/40 active:scale-[0.985]"
-          >
-            <span>■</span> Detener
-          </button>
-        </div>
-
-        <p class="text-[0.7rem] text-dim/70">
-          Atajo: <kbd
-            class="font-mono bg-hi border border-line rounded px-1.5 py-px text-[0.68rem] text-dim"
-            >Espacio</kbd
-          > — pausa con timer activo
-        </p>
-      </section>
-
-      <!-- ── Stats bar ────────────────────────────────────────── -->
-      <section class="grid grid-cols-3 gap-3">
-        <div
-          class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5"
-        >
-          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Hoy</span>
-          <span
-            id="stat-today"
-            class="font-mono text-base font-semibold text-txt tabular-nums"
-            >0h 0m</span
-          >
-        </div>
-        <div
-          class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5"
-        >
-          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Esta semana</span>
-          <span
-            id="stat-week"
-            class="font-mono text-base font-semibold text-txt tabular-nums"
-            >0h 0m</span
-          >
-        </div>
-        <div
-          class="bg-surface border border-line rounded-xl p-4 flex flex-col items-center gap-1.5"
-        >
-          <span class="text-[0.65rem] text-dim uppercase tracking-widest">Sesiones</span>
-          <span
-            id="stat-sessions"
-            class="font-mono text-base font-semibold text-txt tabular-nums"
-            >0</span
-          >
-        </div>
-      </section>
-
-      <!-- ── Records ──────────────────────────────────────────── -->
-      <section class="flex flex-col gap-3">
-        <div class="flex items-center justify-between gap-3 flex-wrap">
-          <div
-            class="flex gap-[3px] bg-surface border border-line rounded-lg p-[3px]"
-          >
-            <button
-              class="filter-btn active px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt"
-              data-filter="all">Todos</button
-            >
-            <button
-              class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt"
-              data-filter="today">Hoy</button
-            >
-            <button
-              class="filter-btn px-3 py-1.5 rounded-md text-xs font-medium text-dim transition-colors hover:text-txt"
-              data-filter="week">Esta semana</button
-            >
+    <section id="settings-panel" class="panel hidden" aria-label="Ajustes de la app">
+      <div class="settings-inner stack-lg">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Preferencias</p>
+            <h2 class="section-title">Metas, avisos y respaldo</h2>
           </div>
-          <div class="flex gap-2">
-            <button
-              id="preview-btn"
-              class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
-              >⊞ Vista previa</button
-            >
-            <label
-              class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent cursor-pointer"
-              title="Importar CSV exportado anteriormente"
-            >
-              ↑ Importar
+          <span id="storage-status" class="status-badge">Guardado local automatico</span>
+        </div>
+
+        <div class="settings-grid">
+          <div class="stack-md">
+            <label class="field-label" for="daily-goal-input">Meta diaria (horas)</label>
+            <input id="daily-goal-input" class="field-input" type="number" min="1" max="24" step="0.5" />
+          </div>
+          <div class="stack-md">
+            <label class="field-label" for="weekly-goal-input">Meta semanal (horas)</label>
+            <input id="weekly-goal-input" class="field-input" type="number" min="1" max="80" step="1" />
+          </div>
+          <div class="stack-md settings-actions">
+            <button id="save-goals-btn" class="primary-btn" type="button">Guardar metas</button>
+            <p id="last-export-status" class="tiny-copy"></p>
+            <p id="backup-nudge" class="tiny-copy warning-copy hidden"></p>
+          </div>
+        </div>
+
+        <div class="stack-md">
+          <span class="field-label">Aviso al acumular hoy</span>
+          <div class="chip-row">
+            <button class="notif-opt chip-btn" data-hours="" type="button">Off</button>
+            <button class="notif-opt chip-btn" data-hours="2" type="button">2h</button>
+            <button class="notif-opt chip-btn" data-hours="4" type="button">4h</button>
+            <button class="notif-opt chip-btn" data-hours="6" type="button">6h</button>
+            <button class="notif-opt chip-btn" data-hours="8" type="button">8h</button>
+          </div>
+          <p id="notif-status" class="tiny-copy"></p>
+        </div>
+      </div>
+    </section>
+
+    <main class="stack-xl">
+      <section class="hero-grid">
+        <section class="panel timer-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Sesion activa</p>
+              <h2 class="section-title">Control rapido</h2>
+            </div>
+            <div class="timer-status">
+              <span id="status-dot" class="status-dot" aria-hidden="true"></span>
+              <span id="timer-state-label" class="tiny-copy">Listo para empezar</span>
+            </div>
+          </div>
+
+          <div class="timer-stack">
+            <p id="timer" class="timer-display">00:00:00</p>
+
+            <div class="stack-md">
+              <label class="field-label" for="project-input">Proyecto</label>
+              <input
+                id="project-input"
+                type="text"
+                list="projects-datalist"
+                placeholder="Cliente, sprint o area"
+                maxlength="50"
+                autocomplete="off"
+                class="field-input"
+              />
+              <datalist id="projects-datalist"></datalist>
+            </div>
+
+            <div class="stack-md">
+              <label class="field-label" for="note-input">Nota de trabajo</label>
+              <input
+                id="note-input"
+                type="text"
+                placeholder="Que estas haciendo ahora"
+                maxlength="200"
+                autocomplete="off"
+                class="field-input"
+              />
+            </div>
+
+            <div id="btn-area" class="button-grid">
+              <button id="start-btn" class="primary-btn big-btn" type="button">Iniciar</button>
+              <button id="pause-btn" class="ghost-btn big-btn hidden" type="button">Pausar</button>
+              <button id="resume-btn" class="primary-btn big-btn hidden" type="button">Reanudar</button>
+              <button id="stop-btn" class="ghost-btn big-btn danger-btn hidden" type="button">Detener</button>
+            </div>
+
+            <p class="tiny-copy">Atajo: <kbd>Espacio</kbd> para iniciar, pausar o reanudar.</p>
+          </div>
+        </section>
+
+        <section class="panel cadence-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Cadencia</p>
+              <h2 class="section-title">Objetivos y respaldo</h2>
+            </div>
+            <span class="panel-accent">Local first</span>
+          </div>
+
+          <div class="stack-lg">
+            <div class="goal-card">
+              <div class="goal-copy">
+                <span class="field-label">Meta diaria</span>
+                <span id="daily-goal-label" class="goal-value">0h / 0h</span>
+              </div>
+              <div class="progress-track"><div id="daily-goal-bar" class="progress-fill"></div></div>
+            </div>
+
+            <div class="goal-card">
+              <div class="goal-copy">
+                <span class="field-label">Meta semanal</span>
+                <span id="weekly-goal-label" class="goal-value">0h / 0h</span>
+              </div>
+              <div class="progress-track"><div id="weekly-goal-bar" class="progress-fill warm"></div></div>
+            </div>
+
+            <div class="trust-card">
+              <p class="field-label">Salud del historial</p>
+              <p id="trust-copy" class="trust-copy"></p>
+              <p id="trust-extra" class="tiny-copy"></p>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="stats-grid">
+        <article class="stat-card">
+          <span class="eyebrow">Hoy</span>
+          <strong id="stat-today" class="stat-value">0h 0m</strong>
+        </article>
+        <article class="stat-card">
+          <span class="eyebrow">Semana</span>
+          <strong id="stat-week" class="stat-value">0h 0m</strong>
+        </article>
+        <article class="stat-card">
+          <span class="eyebrow">Sesiones</span>
+          <strong id="stat-sessions" class="stat-value">0</strong>
+        </article>
+        <article class="stat-card">
+          <span class="eyebrow">Proyectos activos</span>
+          <strong id="stat-projects" class="stat-value">0</strong>
+        </article>
+      </section>
+
+      <section class="insight-grid">
+        <section class="panel stack-lg">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Distribucion</p>
+              <h2 class="section-title">Horas por proyecto</h2>
+            </div>
+            <div class="chip-row">
+              <button id="insight-week-btn" class="chip-btn active" type="button">Semana</button>
+              <button id="insight-month-btn" class="chip-btn" type="button">Mes</button>
+            </div>
+          </div>
+
+          <div id="project-insights-list" class="stack-sm"></div>
+          <p id="project-insights-empty" class="tiny-copy hidden">Todavia no hay horas con proyecto para este periodo.</p>
+        </section>
+
+        <section class="panel stack-lg">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Reporte</p>
+              <h2 class="section-title">Resumen exportable</h2>
+            </div>
+            <span id="report-range" class="status-badge">Todo el historial</span>
+          </div>
+
+          <div class="report-grid">
+            <article class="report-metric">
+              <span class="field-label">Horas</span>
+              <strong id="report-hours" class="report-value">0.0h</strong>
+            </article>
+            <article class="report-metric">
+              <span class="field-label">Sesiones</span>
+              <strong id="report-sessions" class="report-value">0</strong>
+            </article>
+            <article class="report-metric">
+              <span class="field-label">Proyectos</span>
+              <strong id="report-projects" class="report-value">0</strong>
+            </article>
+            <article class="report-metric">
+              <span class="field-label">Media</span>
+              <strong id="report-average" class="report-value">0.0h</strong>
+            </article>
+          </div>
+
+          <div class="report-highlight">
+            <span class="field-label">Proyecto principal</span>
+            <strong id="report-top-project">Sin datos todavia</strong>
+          </div>
+
+          <div class="button-grid compact-grid">
+            <button id="preview-btn" class="ghost-btn" type="button">Vista previa</button>
+            <button id="copy-report-btn" class="ghost-btn" type="button">Copiar resumen</button>
+            <button id="export-btn" class="primary-btn" type="button">Exportar CSV</button>
+            <label class="ghost-btn file-btn" title="Importar CSV exportado anteriormente">
+              Importar CSV
               <input id="import-input" type="file" accept=".csv" class="hidden" />
             </label>
-            <button
-              id="export-btn"
-              class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
-              >↓ Exportar CSV</button
-            >
           </div>
+        </section>
+      </section>
+
+      <section class="panel stack-lg">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Busqueda</p>
+            <h2 class="section-title">Filtros de trabajo</h2>
+          </div>
+          <button id="clear-filters-btn" class="ghost-btn compact-btn" type="button">Limpiar</button>
         </div>
 
-        <ul id="records-list" class="flex flex-col gap-1.5 list-none"></ul>
+        <div class="chip-row">
+          <button class="period-btn chip-btn active" data-period="all" type="button">Todo</button>
+          <button class="period-btn chip-btn" data-period="today" type="button">Hoy</button>
+          <button class="period-btn chip-btn" data-period="week" type="button">Semana</button>
+          <button class="period-btn chip-btn" data-period="custom" type="button">Rango</button>
+        </div>
+
+        <div class="filter-grid">
+          <div class="stack-sm">
+            <label class="field-label" for="search-input">Buscar texto</label>
+            <input id="search-input" class="field-input" type="search" placeholder="Proyecto o nota" />
+          </div>
+          <div class="stack-sm">
+            <label class="field-label" for="project-filter">Proyecto</label>
+            <select id="project-filter" class="field-input select-input">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="stack-sm">
+            <label class="field-label" for="from-date">Desde</label>
+            <input id="from-date" class="field-input" type="date" />
+          </div>
+          <div class="stack-sm">
+            <label class="field-label" for="to-date">Hasta</label>
+            <input id="to-date" class="field-input" type="date" />
+          </div>
+        </div>
+      </section>
+
+      <section class="panel stack-lg">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Historial</p>
+            <h2 class="section-title">Sesiones registradas</h2>
+          </div>
+          <p class="tiny-copy">Abre una sesion para editar fecha, hora, proyecto, nota, duplicar, partir o fusionar.</p>
+        </div>
+
+        <ul id="records-list" class="records-list"></ul>
       </section>
     </main>
   </div>
 
-  <!-- ── CSV Preview Modal ────────────────────────────────────────────── -->
-  <div
-    id="csv-modal"
-    class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Vista previa CSV"
-  >
-    <div id="csv-backdrop" class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
-    <div class="relative z-10 w-full sm:max-w-[720px] bg-surface border border-line sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[90dvh] sm:max-h-[80dvh]">
-      <div class="flex items-center justify-between px-5 py-4 border-b border-line shrink-0">
-        <span class="text-sm font-semibold">Vista previa CSV</span>
-        <button
-          id="csv-close"
-          class="w-7 h-7 flex items-center justify-center rounded-lg text-dim hover:text-txt hover:bg-hi border border-transparent hover:border-line transition-all duration-150 text-xs"
-          title="Cerrar"
-        >✕</button>
+  <div id="entry-modal" class="modal-shell hidden" role="dialog" aria-modal="true" aria-labelledby="entry-modal-title">
+    <div class="modal-backdrop" data-close-entry></div>
+    <div class="modal-card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Registro</p>
+          <h2 id="entry-modal-title" class="section-title">Editar sesion</h2>
+        </div>
+        <button id="entry-close" class="ghost-btn compact-btn" type="button">Cerrar</button>
       </div>
-      <div class="overflow-auto flex-1 px-5 py-4">
-        <table id="csv-table" class="w-full text-[0.72rem] font-mono border-collapse min-w-[580px]"></table>
+
+      <form id="entry-form" class="stack-lg">
+        <input id="entry-id" type="hidden" />
+        <div class="modal-grid">
+          <div class="stack-sm">
+            <label class="field-label" for="entry-date-input">Fecha</label>
+            <input id="entry-date-input" class="field-input" type="date" required />
+          </div>
+          <div class="stack-sm">
+            <label class="field-label" for="entry-start-input">Inicio</label>
+            <input id="entry-start-input" class="field-input" type="time" required />
+          </div>
+          <div class="stack-sm">
+            <label class="field-label" for="entry-end-input">Fin</label>
+            <input id="entry-end-input" class="field-input" type="time" required />
+          </div>
+        </div>
+
+        <div class="stack-sm">
+          <label class="field-label" for="entry-project-input">Proyecto</label>
+          <input id="entry-project-input" class="field-input" type="text" maxlength="50" />
+        </div>
+
+        <div class="stack-sm">
+          <label class="field-label" for="entry-note-input">Nota</label>
+          <textarea id="entry-note-input" class="field-input textarea-input" rows="3" maxlength="200"></textarea>
+        </div>
+
+        <div class="split-row">
+          <div class="stack-sm">
+            <label class="field-label" for="entry-split-input">Partir en</label>
+            <input id="entry-split-input" class="field-input" type="time" />
+          </div>
+          <button id="entry-split-btn" class="ghost-btn" type="button">Partir sesion</button>
+        </div>
+
+        <div class="stack-sm">
+          <span class="field-label">Fusionar con sesion cercana</span>
+          <div id="merge-actions" class="chip-row"></div>
+        </div>
+
+        <div class="button-grid compact-grid">
+          <button id="entry-save-btn" class="primary-btn" type="submit">Guardar cambios</button>
+          <button id="entry-duplicate-btn" class="ghost-btn" type="button">Duplicar</button>
+          <button id="entry-delete-btn" class="ghost-btn danger-btn" type="button">Eliminar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="csv-modal" class="modal-shell hidden" role="dialog" aria-modal="true" aria-labelledby="csv-title">
+    <div class="modal-backdrop" data-close-preview></div>
+    <div class="modal-card wide-card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Exportacion</p>
+          <h2 id="csv-title" class="section-title">Vista previa CSV</h2>
+        </div>
+        <button id="csv-close" class="ghost-btn compact-btn" type="button">Cerrar</button>
       </div>
-      <div class="px-5 py-3.5 border-t border-line shrink-0 flex items-center justify-between gap-3">
-        <span id="csv-count" class="text-xs text-dim tabular-nums"></span>
-        <button
-          id="csv-download-modal"
-          class="px-3.5 py-2 rounded-lg text-xs font-medium bg-surface text-dim border border-line transition-colors hover:text-accent hover:border-accent"
-        >↓ Descargar CSV</button>
+
+      <div class="stack-md">
+        <p id="csv-summary" class="tiny-copy"></p>
+        <span id="csv-count" class="status-badge">0 registros</span>
+      </div>
+
+      <div class="table-shell">
+        <table id="csv-table" class="preview-table"></table>
+      </div>
+
+      <div class="button-grid compact-grid">
+        <button id="csv-download-modal" class="primary-btn" type="button">Descargar CSV</button>
       </div>
     </div>
   </div>
 
-  <!-- ── Toast ────────────────────────────────────────────────────────── -->
-  <div
-    id="toast"
-    class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-hi border border-line rounded-xl px-4 py-2.5 text-sm text-txt shadow-lg z-50 flex items-center gap-3 whitespace-nowrap"
-  >
+  <div id="toast" class="toast hidden" role="status" aria-live="polite">
     <span id="toast-msg"></span>
-    <button id="toast-action" class="hidden text-accent font-semibold text-xs hover:underline shrink-0"></button>
+    <button id="toast-action" class="hidden toast-action" type="button"></button>
   </div>
 </Layout>
 
 <script>
   import "../scripts/timelog.ts";
 </script>
-
